@@ -1,0 +1,96 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+
+	"silvia/internal/bsky"
+	"silvia/internal/cli"
+	"silvia/internal/graph"
+	"silvia/internal/llm"
+)
+
+func main() {
+	var (
+		help          bool
+		bskyHandle    string
+		bskyPassword  string
+		openrouterKey string
+		dataDir       string
+	)
+
+	flag.BoolVar(&help, "help", false, "Show help message")
+	flag.BoolVar(&help, "h", false, "Show help message (shorthand)")
+	flag.StringVar(&bskyHandle, "bsky-handle", os.Getenv("BSKY_HANDLE"), "Bluesky handle (can also use BSKY_HANDLE env var)")
+	flag.StringVar(&bskyPassword, "bsky-password", os.Getenv("BSKY_PASSWORD"), "Bluesky app password (can also use BSKY_PASSWORD env var)")
+	flag.StringVar(&openrouterKey, "openrouter-key", os.Getenv("OPENROUTER_API_KEY"), "OpenRouter API key (can also use OPENROUTER_API_KEY env var)")
+	flag.StringVar(&dataDir, "data", "./data", "Data directory for storing the knowledge graph")
+	flag.Parse()
+
+	if help {
+		fmt.Println("silvia - Knowledge Graph Explorer")
+		fmt.Println()
+		fmt.Println("Usage:")
+		fmt.Printf("  %s [flags]\n", os.Args[0])
+		fmt.Println()
+		fmt.Println("Flags:")
+		flag.PrintDefaults()
+		fmt.Println()
+		fmt.Println("Environment Variables:")
+		fmt.Println("  BSKY_HANDLE          Bluesky handle")
+		fmt.Println("  BSKY_PASSWORD        Bluesky app password")
+		fmt.Println("  OPENROUTER_API_KEY   OpenRouter API key")
+		os.Exit(0)
+	}
+
+	// Initialize graph manager
+	graphManager := graph.NewManager(dataDir)
+	if err := graphManager.InitializeDirectories(); err != nil {
+		log.Fatalf("Failed to initialize directories: %v", err)
+	}
+
+	// Initialize Bluesky client (optional)
+	var bskyClient *bsky.Client
+	if bskyHandle != "" && bskyPassword != "" {
+		client, err := bsky.NewClient(bskyHandle, bskyPassword)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize Bluesky client: %v", err)
+		} else {
+			bskyClient = client
+			log.Printf("Bluesky client initialized for handle: %s", bskyHandle)
+		}
+	}
+
+	// Initialize OpenRouter client (optional but recommended)
+	var llmClient *llm.Client
+	if openrouterKey != "" {
+		llmClient = llm.NewClient(openrouterKey)
+		log.Println("OpenRouter client initialized")
+	} else {
+		log.Println("Note: OpenRouter API key not provided. Natural language features will be limited.")
+	}
+
+	// Store clients in context for later use
+	ctx := context.Background()
+	if bskyClient != nil {
+		ctx = context.WithValue(ctx, "bsky", bskyClient)
+	}
+
+	// Initialize CLI
+	cliInterface := cli.NewCLI(graphManager, llmClient)
+
+	// Load queue from disk
+	queuePath := filepath.Join(dataDir, ".silvia", "queue.json")
+	if err := cliInterface.LoadQueue(queuePath); err != nil {
+		log.Printf("Warning: Failed to load queue: %v", err)
+	}
+
+	// Run interactive CLI
+	if err := cliInterface.Run(ctx); err != nil {
+		log.Fatalf("CLI error: %v", err)
+	}
+}
