@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"silvia/internal/graph"
+	"silvia/internal/sources"
 )
 
 // showQueue displays the current source queue
 func (c *CLI) showQueue() error {
 	items := c.queue.GetAll()
-	
+
 	if len(items) == 0 {
 		fmt.Println("Queue is empty.")
 		return nil
@@ -45,7 +48,7 @@ func (c *CLI) exploreQueue(ctx context.Context) error {
 		if item.Description != "" {
 			fmt.Printf("   %s\n", item.Description)
 		}
-		
+
 		c.readline.SetPrompt("Process this source? (y/n/skip/preview/stop): ")
 		response, _ := c.readline.Readline()
 		c.readline.SetPrompt("> ")
@@ -120,12 +123,12 @@ func (c *CLI) addToQueue(sources []string, descriptions []string) error {
 			}
 			fmt.Println()
 		}
-		
+
 		c.readline.SetPrompt("Enter numbers to queue (comma-separated) or 'skip': ")
 		selection, _ := c.readline.Readline()
 		c.readline.SetPrompt("> ")
 		selection = strings.TrimSpace(selection)
-		
+
 		if selection != "skip" {
 			nums := strings.Split(selection, ",")
 			added := 0
@@ -153,42 +156,111 @@ func (c *CLI) addToQueue(sources []string, descriptions []string) error {
 
 	// Save queue
 	c.queue.SaveToFile()
-	
+
 	// Show current queue size
 	fmt.Printf("Queue now has %d pending sources.\n", c.queue.Len())
-	
+
 	return nil
 }
 
-// ingestSource processes a source (placeholder for now)
+// ingestSource processes a source
 func (c *CLI) ingestSource(ctx context.Context, url string) error {
 	fmt.Printf("📥 Ingesting source: %s\n", url)
-	
-	// TODO: Implement actual source ingestion
-	// This will involve:
-	// 1. Fetching the source content
-	// 2. Converting to markdown
-	// 3. Extracting entities and relationships
-	// 4. Updating the graph
-	// 5. Finding linked sources
-	
-	fmt.Println("⚠️  Source ingestion not yet fully implemented")
-	
-	// For now, just simulate finding some linked sources
-	if strings.Contains(url, "bsky.app") {
-		fmt.Println("Found Bluesky thread...")
-		// Simulate finding linked sources
-		linkedSources := []string{
-			"https://example.com/article1",
-			"https://example.com/article2",
-		}
-		descriptions := []string{
-			"Referenced article about topic X",
-			"Related discussion thread",
-		}
-		
-		return c.addToQueue(linkedSources, descriptions)
+
+	// Fetch the source
+	source, err := c.sources.Fetch(ctx, url)
+	if err != nil {
+		return fmt.Errorf("failed to fetch source: %w", err)
 	}
-	
+
+	fmt.Printf("✓ Fetched: %s\n", source.Title)
+
+	// Save the source content
+	if err := c.saveSource(source); err != nil {
+		fmt.Printf("⚠️  Failed to save source: %v\n", err)
+	}
+
+	// Extract entities and relationships
+	fmt.Println("🔍 Extracting entities...")
+	extraction, err := c.extractor.Extract(ctx, source)
+	if err != nil {
+		return fmt.Errorf("extraction failed: %w", err)
+	}
+
+	// Process extracted entities
+	if len(extraction.Entities) > 0 {
+		fmt.Printf("Found %d entities:\n", len(extraction.Entities))
+		for _, entity := range extraction.Entities {
+			// Create or update entity in graph
+			id := c.generateEntityID(entity.Name, entity.Type)
+
+			// Check if entity exists
+			if !c.graph.EntityExists(id) {
+				// Create new entity
+				graphEntity := graph.NewEntity(id, entity.Type)
+				graphEntity.Title = entity.Name
+				graphEntity.Content = entity.Description
+				graphEntity.Metadata.Aliases = entity.Aliases
+				graphEntity.AddSource(url)
+
+				if err := c.graph.SaveEntity(graphEntity); err != nil {
+					fmt.Printf("  ⚠️  Failed to save %s: %v\n", entity.Name, err)
+				} else {
+					fmt.Printf("  ✓ Created: %s %s (%s)\n",
+						getEntityIcon(entity.Type), entity.Name, id)
+				}
+			} else {
+				// Update existing entity with new source
+				existing, err := c.graph.LoadEntity(id)
+				if err == nil {
+					existing.AddSource(url)
+					if err := c.graph.SaveEntity(existing); err != nil {
+						fmt.Printf("  ⚠️  Failed to update %s: %v\n", entity.Name, err)
+					} else {
+						fmt.Printf("  ✓ Updated: %s %s\n",
+							getEntityIcon(entity.Type), entity.Name)
+					}
+				}
+			}
+		}
+	}
+
+	// Process relationships
+	if len(extraction.Relationships) > 0 {
+		fmt.Printf("Found %d relationships:\n", len(extraction.Relationships))
+		for _, rel := range extraction.Relationships {
+			fmt.Printf("  • %s → %s → %s\n", rel.Source, rel.Type, rel.Target)
+			// TODO: Create relationships in graph
+		}
+	}
+
+	// Add linked sources to queue
+	if len(extraction.LinkedSources) > 0 {
+		fmt.Printf("\nFound %d linked sources\n", len(extraction.LinkedSources))
+
+		// Filter out already processed or queued URLs
+		var newSources []string
+		var descriptions []string
+
+		for _, link := range extraction.LinkedSources {
+			// Make relative URLs absolute
+			if strings.HasPrefix(link, "/") {
+				link = sources.ExtractDomain(url) + link
+			}
+
+			// Skip if already in queue or processed
+			if !c.queue.Contains(link) && !c.isSourceProcessed(link) {
+				newSources = append(newSources, link)
+				descriptions = append(descriptions, fmt.Sprintf("Linked from: %s", source.Title))
+			}
+		}
+
+		if len(newSources) > 0 {
+			return c.addToQueue(newSources, descriptions)
+		}
+	}
+
+	fmt.Println("✅ Source ingestion complete")
 	return nil
 }
+

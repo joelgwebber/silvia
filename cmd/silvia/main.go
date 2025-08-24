@@ -65,14 +65,12 @@ func main() {
 		}
 	}
 
-	// Initialize OpenRouter client (optional but recommended)
-	var llmClient *llm.Client
-	if openrouterKey != "" {
-		llmClient = llm.NewClient(openrouterKey)
-		log.Println("OpenRouter client initialized")
-	} else {
-		log.Println("Note: OpenRouter API key not provided. Natural language features will be limited.")
+	// Initialize OpenRouter client (required)
+	if openrouterKey == "" {
+		log.Fatal("Error: OPENROUTER_API_KEY environment variable is required")
 	}
+	llmClient := llm.NewClient(openrouterKey)
+	log.Println("OpenRouter client initialized")
 
 	// Store clients in context for later use
 	ctx := context.Background()

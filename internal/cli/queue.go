@@ -176,6 +176,11 @@ func (q *SourceQueue) Clear() {
 	q.itemMap = make(map[string]bool)
 }
 
+// Contains checks if a URL is already in the queue
+func (q *SourceQueue) Contains(url string) bool {
+	return q.itemMap[url]
+}
+
 // Heap interface implementation
 func (q *SourceQueue) Len() int { return len(q.items) }
 

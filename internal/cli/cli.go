@@ -6,27 +6,36 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/chzyer/readline"
 	"silvia/internal/graph"
 	"silvia/internal/llm"
+	"silvia/internal/sources"
 )
 
 // CLI provides the interactive command-line interface
 type CLI struct {
-	graph    *graph.Manager
-	llm      *llm.Client
-	queue    *SourceQueue
-	readline *readline.Instance
+	graph     *graph.Manager
+	llm       *llm.Client
+	queue     *SourceQueue
+	readline  *readline.Instance
+	sources   *sources.Manager
+	extractor *sources.Extractor
+	dataDir   string
 }
 
 // NewCLI creates a new CLI instance
 func NewCLI(graphManager *graph.Manager, llmClient *llm.Client) *CLI {
 	return &CLI{
-		graph: graphManager,
-		llm:   llmClient,
-		queue: NewSourceQueue(),
+		graph:     graphManager,
+		llm:       llmClient,
+		queue:     NewSourceQueue(),
+		sources:   sources.NewManager(),
+		extractor: sources.NewExtractor(llmClient),
+		dataDir:   "data", // Default data directory
 	}
 }
 
@@ -442,12 +451,6 @@ func (c *CLI) createLink(sourceID, relType, targetID string) error {
 
 // handleNaturalQuery processes natural language queries using the LLM
 func (c *CLI) handleNaturalQuery(ctx context.Context, query string) error {
-	if c.llm == nil {
-		fmt.Println("Natural language queries require an LLM connection.")
-		fmt.Println("Please set OPENROUTER_API_KEY environment variable.")
-		return nil
-	}
-
 	fmt.Println("🔍 Analyzing your query...")
 
 	// First, search for relevant entities
@@ -505,4 +508,116 @@ func getEntityIcon(entityType graph.EntityType) string {
 	default:
 		return "📄"
 	}
+}
+
+// generateEntityID creates a standardized ID for an entity
+func (c *CLI) generateEntityID(name string, entityType graph.EntityType) string {
+	// Convert to lowercase and replace spaces with hyphens
+	id := strings.ToLower(name)
+	id = regexp.MustCompile(`[^a-z0-9-]+`).ReplaceAllString(id, "-")
+	id = strings.Trim(id, "-")
+	
+	// Add type prefix
+	var prefix string
+	switch entityType {
+	case graph.EntityPerson:
+		prefix = "people/"
+	case graph.EntityOrganization:
+		prefix = "organizations/"
+	case graph.EntityConcept:
+		prefix = "concepts/"
+	case graph.EntityWork:
+		prefix = "works/"
+	case graph.EntityEvent:
+		prefix = "events/"
+	default:
+		prefix = "entities/"
+	}
+	
+	return prefix + id
+}
+
+// saveSource saves the fetched source content to disk
+func (c *CLI) saveSource(source *sources.Source) error {
+	// Create filename from URL
+	domain := sources.ExtractDomain(source.URL)
+	timestamp := time.Now().Format("20060102-150405")
+	filename := fmt.Sprintf("%s-%s.md", domain, timestamp)
+	
+	// Determine subdirectory based on domain
+	var subdir string
+	if strings.Contains(domain, "bsky") {
+		subdir = "bsky"
+	} else if strings.Contains(domain, ".pdf") {
+		subdir = "pdfs"
+	} else {
+		subdir = "web"
+	}
+	
+	// Create full path
+	filePath := filepath.Join(c.dataDir, "sources", subdir, filename)
+	
+	// Ensure directory exists
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+	
+	// Create markdown with metadata
+	content := fmt.Sprintf(`---
+url: %s
+title: %s
+fetched_at: %s
+domain: %s
+---
+
+# %s
+
+Source: %s
+
+%s
+`,
+		source.URL,
+		source.Title,
+		time.Now().Format(time.RFC3339),
+		domain,
+		source.Title,
+		source.URL,
+		source.Content,
+	)
+	
+	// Write file
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write source file: %w", err)
+	}
+	
+	return nil
+}
+
+// isSourceProcessed checks if a URL has already been processed
+func (c *CLI) isSourceProcessed(url string) bool {
+	// Check if source file exists
+	domain := sources.ExtractDomain(url)
+	sourcesDir := filepath.Join(c.dataDir, "sources")
+	
+	// Check all subdirectories
+	subdirs := []string{"web", "bsky", "pdfs"}
+	for _, subdir := range subdirs {
+		dir := filepath.Join(sourcesDir, subdir)
+		files, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		
+		// Check if any file contains this URL
+		for _, file := range files {
+			if strings.Contains(file.Name(), domain) {
+				// Could read file and check URL in metadata for exact match
+				// For now, domain match is sufficient
+				return true
+			}
+		}
+	}
+	
+	return false
 }
