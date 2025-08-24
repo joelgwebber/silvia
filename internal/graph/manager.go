@@ -160,6 +160,36 @@ func (m *Manager) SearchEntities(query string) ([]*Entity, error) {
 	return matches, nil
 }
 
+// ListAllEntities returns all entities in the graph
+func (m *Manager) ListAllEntities() ([]*Entity, error) {
+	var entities []*Entity
+
+	graphDir := filepath.Join(m.baseDir, "graph")
+	err := filepath.Walk(graphDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !strings.HasSuffix(path, ".md") {
+			return nil
+		}
+
+		entity, err := LoadEntityFromFile(path)
+		if err != nil {
+			return nil // Skip invalid files
+		}
+
+		entities = append(entities, entity)
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to list entities: %w", err)
+	}
+
+	return entities, nil
+}
+
 // GetRelatedEntities returns all entities directly related to the given entity
 func (m *Manager) GetRelatedEntities(entityID string) ([]*Entity, error) {
 	entity, err := m.LoadEntity(entityID)

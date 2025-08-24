@@ -46,8 +46,9 @@ func (c *CLI) exploreQueue(ctx context.Context) error {
 			fmt.Printf("   %s\n", item.Description)
 		}
 		
-		fmt.Print("Process this source? (y/n/skip/preview/stop): ")
-		response, _ := c.reader.ReadString('\n')
+		c.readline.SetPrompt("Process this source? (y/n/skip/preview/stop): ")
+		response, _ := c.readline.Readline()
+		c.readline.SetPrompt("> ")
 		response = strings.TrimSpace(strings.ToLower(response))
 
 		switch response {
@@ -57,8 +58,9 @@ func (c *CLI) exploreQueue(ctx context.Context) error {
 			if err := c.ingestSource(ctx, item.URL); err != nil {
 				fmt.Printf("Error ingesting source: %v\n", err)
 				// Ask if we should continue
-				fmt.Print("Continue with next source? (y/n): ")
-				cont, _ := c.reader.ReadString('\n')
+				c.readline.SetPrompt("Continue with next source? (y/n): ")
+				cont, _ := c.readline.Readline()
+				c.readline.SetPrompt("> ")
 				if strings.TrimSpace(strings.ToLower(cont)) != "y" {
 					return nil
 				}
@@ -93,7 +95,9 @@ func (c *CLI) addToQueue(sources []string, descriptions []string) error {
 	}
 
 	fmt.Printf("\nFound %d linked sources. Add to queue? (all/select/none): ", len(sources))
-	response, _ := c.reader.ReadString('\n')
+	c.readline.SetPrompt("Choice: ")
+	response, _ := c.readline.Readline()
+	c.readline.SetPrompt("> ")
 	response = strings.TrimSpace(strings.ToLower(response))
 
 	switch response {
@@ -117,8 +121,9 @@ func (c *CLI) addToQueue(sources []string, descriptions []string) error {
 			fmt.Println()
 		}
 		
-		fmt.Print("Enter numbers to queue (comma-separated) or 'skip': ")
-		selection, _ := c.reader.ReadString('\n')
+		c.readline.SetPrompt("Enter numbers to queue (comma-separated) or 'skip': ")
+		selection, _ := c.readline.Readline()
+		c.readline.SetPrompt("> ")
 		selection = strings.TrimSpace(selection)
 		
 		if selection != "skip" {

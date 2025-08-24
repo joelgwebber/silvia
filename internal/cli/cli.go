@@ -1,31 +1,32 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/chzyer/readline"
 	"silvia/internal/graph"
 	"silvia/internal/llm"
 )
 
 // CLI provides the interactive command-line interface
 type CLI struct {
-	graph  *graph.Manager
-	llm    *llm.Client
-	queue  *SourceQueue
-	reader *bufio.Reader
+	graph    *graph.Manager
+	llm      *llm.Client
+	queue    *SourceQueue
+	readline *readline.Instance
 }
 
 // NewCLI creates a new CLI instance
 func NewCLI(graphManager *graph.Manager, llmClient *llm.Client) *CLI {
 	return &CLI{
-		graph:  graphManager,
-		llm:    llmClient,
-		queue:  NewSourceQueue(),
-		reader: bufio.NewReader(os.Stdin),
+		graph: graphManager,
+		llm:   llmClient,
+		queue: NewSourceQueue(),
 	}
 }
 
@@ -36,38 +37,121 @@ func (c *CLI) LoadQueue(filePath string) error {
 
 // Run starts the interactive CLI session
 func (c *CLI) Run(ctx context.Context) error {
+	// Initialize readline with autocompletion
+	config := &readline.Config{
+		Prompt:            "> ",
+		HistoryFile:       filepath.Join(os.TempDir(), ".silvia_history"),
+		AutoComplete:      c.buildAutoCompleter(),
+		InterruptPrompt:   "^C",
+		EOFPrompt:         "exit",
+		HistorySearchFold: true,
+	}
+
+	rl, err := readline.NewEx(config)
+	if err != nil {
+		return fmt.Errorf("failed to initialize readline: %w", err)
+	}
+	c.readline = rl
+	defer rl.Close()
+
 	fmt.Println("Welcome to silvia - Knowledge Graph Explorer")
-	fmt.Println("Type 'help' for commands, or just chat naturally.")
+	fmt.Println("Type /help for commands, or just chat naturally.")
 	fmt.Println()
 
 	for {
-		fmt.Print("> ")
-		input, err := c.reader.ReadString('\n')
-		if err != nil {
-			return fmt.Errorf("failed to read input: %w", err)
+		line, err := rl.Readline()
+		if err == readline.ErrInterrupt {
+			if len(line) == 0 {
+				break
+			} else {
+				continue
+			}
+		} else if err == io.EOF {
+			break
 		}
 
-		input = strings.TrimSpace(input)
-		if input == "" {
+		line = strings.TrimSpace(line)
+		if line == "" {
 			continue
 		}
 
 		// Check for exit commands
-		if input == "exit" || input == "quit" || input == "q" {
+		if line == "/exit" || line == "/quit" || line == "/q" {
 			fmt.Println("Goodbye!")
 			return nil
 		}
 
 		// Process the command
-		if err := c.processInput(ctx, input); err != nil {
+		if err := c.processInput(ctx, line); err != nil {
 			fmt.Printf("Error: %v\n", err)
 		}
+	}
+
+	return nil
+}
+
+// buildAutoCompleter creates the autocompletion configuration
+func (c *CLI) buildAutoCompleter() *readline.PrefixCompleter {
+	return readline.NewPrefixCompleter(
+		readline.PcItem("/help"),
+		readline.PcItem("/ingest"),
+		readline.PcItem("/show",
+			readline.PcItemDynamic(c.listEntityIDs()),
+		),
+		readline.PcItem("/search"),
+		readline.PcItem("/queue"),
+		readline.PcItem("/explore",
+			readline.PcItem("queue"),
+		),
+		readline.PcItem("/related",
+			readline.PcItemDynamic(c.listEntityIDs()),
+		),
+		readline.PcItem("/create",
+			readline.PcItem("person"),
+			readline.PcItem("organization"),
+			readline.PcItem("concept"),
+			readline.PcItem("work"),
+			readline.PcItem("event"),
+		),
+		readline.PcItem("/link",
+			readline.PcItemDynamic(c.listEntityIDs()),
+		),
+		readline.PcItem("/clear"),
+		readline.PcItem("/exit"),
+		readline.PcItem("/quit"),
+		readline.PcItem("/q"),
+	)
+}
+
+// listEntityIDs returns a function that lists all entity IDs for autocompletion
+func (c *CLI) listEntityIDs() func(string) []string {
+	return func(line string) []string {
+		entities, err := c.graph.ListAllEntities()
+		if err != nil {
+			return []string{}
+		}
+		
+		var ids []string
+		for _, entity := range entities {
+			ids = append(ids, entity.Metadata.ID)
+		}
+		return ids
 	}
 }
 
 // processInput handles user input
 func (c *CLI) processInput(ctx context.Context, input string) error {
-	// Check for specific commands
+	// Check if it's a slash command
+	if strings.HasPrefix(input, "/") {
+		return c.processCommand(ctx, input)
+	}
+	
+	// Otherwise treat as natural language query
+	return c.handleNaturalQuery(ctx, input)
+}
+
+// processCommand handles slash commands
+func (c *CLI) processCommand(ctx context.Context, input string) error {
 	parts := strings.Fields(input)
 	if len(parts) == 0 {
 		return nil
@@ -77,50 +161,49 @@ func (c *CLI) processInput(ctx context.Context, input string) error {
 	args := parts[1:]
 
 	switch command {
-	case "help", "h", "?":
+	case "/help", "/h", "/?":
 		c.showHelp()
-	case "ingest":
+	case "/ingest":
 		if len(args) < 1 {
-			return fmt.Errorf("usage: ingest <url>")
+			return fmt.Errorf("usage: /ingest <url>")
 		}
 		return c.ingestSource(ctx, args[0])
-	case "show", "view":
+	case "/show", "/view":
 		if len(args) < 1 {
-			return fmt.Errorf("usage: show <entity-id>")
+			return fmt.Errorf("usage: /show <entity-id>")
 		}
 		return c.showEntity(strings.Join(args, " "))
-	case "search", "find":
+	case "/search", "/find":
 		if len(args) < 1 {
-			return fmt.Errorf("usage: search <query>")
+			return fmt.Errorf("usage: /search <query>")
 		}
 		return c.searchEntities(strings.Join(args, " "))
-	case "queue":
+	case "/queue":
 		return c.showQueue()
-	case "explore":
+	case "/explore":
 		if len(args) > 0 && args[0] == "queue" {
 			return c.exploreQueue(ctx)
 		}
-		return fmt.Errorf("usage: explore queue")
-	case "related", "connections":
+		return fmt.Errorf("usage: /explore queue")
+	case "/related", "/connections":
 		if len(args) < 1 {
-			return fmt.Errorf("usage: related <entity-id>")
+			return fmt.Errorf("usage: /related <entity-id>")
 		}
 		return c.showRelated(strings.Join(args, " "))
-	case "create":
+	case "/create":
 		if len(args) < 2 {
-			return fmt.Errorf("usage: create <type> <id>")
+			return fmt.Errorf("usage: /create <type> <id>")
 		}
 		return c.createEntity(args[0], strings.Join(args[1:], " "))
-	case "link", "connect":
+	case "/link", "/connect":
 		if len(args) < 3 {
-			return fmt.Errorf("usage: link <source-id> <rel-type> <target-id>")
+			return fmt.Errorf("usage: /link <source-id> <rel-type> <target-id>")
 		}
 		return c.createLink(args[0], args[1], args[2])
-	case "clear":
+	case "/clear":
 		fmt.Print("\033[H\033[2J") // Clear screen
 	default:
-		// If not a command, treat as natural language query
-		return c.handleNaturalQuery(ctx, input)
+		return fmt.Errorf("unknown command: %s (type /help for commands)", command)
 	}
 
 	return nil
@@ -129,18 +212,21 @@ func (c *CLI) processInput(ctx context.Context, input string) error {
 // showHelp displays available commands
 func (c *CLI) showHelp() {
 	fmt.Println("\nAvailable Commands:")
-	fmt.Println("  help                     - Show this help message")
-	fmt.Println("  ingest <url>            - Ingest a new source")
-	fmt.Println("  show <entity-id>        - Display an entity")
-	fmt.Println("  search <query>          - Search for entities")
-	fmt.Println("  queue                   - Show pending sources")
-	fmt.Println("  explore queue           - Process sources in queue")
-	fmt.Println("  related <entity-id>     - Show related entities")
-	fmt.Println("  create <type> <id>      - Create new entity")
-	fmt.Println("  link <from> <type> <to> - Create relationship")
-	fmt.Println("  clear                   - Clear screen")
-	fmt.Println("  exit/quit/q             - Exit the program")
-	fmt.Println("\nYou can also ask natural language questions!")
+	fmt.Println("  /help                      - Show this help message")
+	fmt.Println("  /ingest <url>              - Ingest a new source")
+	fmt.Println("  /show <entity-id>          - Display an entity (tab for autocomplete)")
+	fmt.Println("  /search <query>            - Search for entities")
+	fmt.Println("  /queue                     - Show pending sources")
+	fmt.Println("  /explore queue             - Process sources in queue")
+	fmt.Println("  /related <entity-id>       - Show related entities (tab for autocomplete)")
+	fmt.Println("  /create <type> <id>        - Create new entity")
+	fmt.Println("  /link <from> <type> <to>   - Create relationship")
+	fmt.Println("  /clear                     - Clear screen")
+	fmt.Println("  /exit, /quit, /q           - Exit the program")
+	fmt.Println("\nTips:")
+	fmt.Println("  • Use Tab for command and entity ID autocompletion")
+	fmt.Println("  • Use ↑/↓ arrows to navigate command history")
+	fmt.Println("  • Type without / for natural language queries")
 	fmt.Println()
 }
 
@@ -288,17 +374,23 @@ func (c *CLI) createEntity(entityType, id string) error {
 	entity := graph.NewEntity(id, eType)
 
 	// Get title
-	fmt.Print("Title: ")
-	title, _ := c.reader.ReadString('\n')
+	c.readline.SetPrompt("Title: ")
+	title, err := c.readline.Readline()
+	if err != nil {
+		return fmt.Errorf("cancelled")
+	}
 	entity.Title = strings.TrimSpace(title)
 
 	// Get description
-	fmt.Print("Description (press Enter twice to finish):\n")
+	fmt.Println("Description (press Enter twice to finish):")
+	c.readline.SetPrompt("")
 	var descLines []string
 	emptyCount := 0
 	for {
-		line, _ := c.reader.ReadString('\n')
-		line = strings.TrimSuffix(line, "\n")
+		line, err := c.readline.Readline()
+		if err != nil {
+			break
+		}
 		if line == "" {
 			emptyCount++
 			if emptyCount >= 1 {
@@ -310,6 +402,9 @@ func (c *CLI) createEntity(entityType, id string) error {
 		descLines = append(descLines, line)
 	}
 	entity.Content = strings.Join(descLines, "\n")
+
+	// Restore prompt
+	c.readline.SetPrompt("> ")
 
 	// Save entity
 	if err := c.graph.SaveEntity(entity); err != nil {
