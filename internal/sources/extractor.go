@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"silvia/internal/graph"
@@ -26,11 +27,21 @@ type ExtractedRelationship struct {
 	Note   string
 }
 
+// ExtractedLink represents a link found in the content with context
+type ExtractedLink struct {
+	URL         string
+	Title       string
+	Description string
+	Relevance   string // high, medium, low
+	Category    string // reference, discussion, resource, navigation, advertisement
+}
+
 // ExtractionResult contains entities and relationships found in a source
 type ExtractionResult struct {
 	Entities      []ExtractedEntity
 	Relationships []ExtractedRelationship
-	LinkedSources []string
+	LinkedSources []string // Simple list for backward compatibility
+	Links         []ExtractedLink // Enhanced link information
 }
 
 // Extractor uses LLM to extract entities from content
@@ -50,7 +61,22 @@ func NewExtractor(llmClient *llm.Client) *Extractor {
 
 // Extract analyzes content and extracts entities, relationships, and linked sources
 func (e *Extractor) Extract(ctx context.Context, source *Source) (*ExtractionResult, error) {
-	systemPrompt := `You are an entity extraction system for a knowledge graph. Extract entities, relationships, and linked sources from the provided text.
+	// First, clean and prepare the list of raw links
+	cleanedLinks := e.cleanLinks(source.Links, source.URL)
+	
+	systemPrompt := `You are an intelligent content analyzer for a knowledge graph system. Analyze the provided article and extract:
+1. Important entities (people, organizations, concepts, works, events)
+2. Relationships between entities
+3. Relevant links that would be valuable to explore
+
+For links, you should:
+- ONLY include links that are directly referenced or discussed in the article content
+- Categorize each link (reference, discussion, resource, navigation, advertisement)
+- Rate relevance (high, medium, low) based on how central the link is to the article's topic
+- Provide a brief description of what the link is about based on context
+- Filter out obvious navigation links (home, about, contact, login, etc.)
+- Filter out advertisements and unrelated promotional content
+- Prioritize substantive content links (articles, papers, projects, discussions)
 
 Output JSON with this structure:
 {
@@ -58,8 +84,8 @@ Output JSON with this structure:
     {
       "name": "Entity Name",
       "type": "person|organization|concept|work|event",
-      "description": "Brief description",
-      "aliases": ["alternative", "names"]
+      "description": "Brief description from context",
+      "aliases": ["alternative names mentioned"]
     }
   ],
   "relationships": [
@@ -67,20 +93,41 @@ Output JSON with this structure:
       "source": "Source Entity",
       "target": "Target Entity",
       "type": "relationship type",
-      "note": "optional note"
+      "note": "context from article"
     }
   ],
-  "linked_sources": ["urls mentioned or referenced"]
+  "links": [
+    {
+      "url": "full URL",
+      "title": "link text or inferred title",
+      "description": "what this link is about based on article context",
+      "relevance": "high|medium|low",
+      "category": "reference|discussion|resource|navigation|advertisement"
+    }
+  ]
 }
 
-Focus on notable entities only. Be conservative - only extract entities that are clearly important to the content.`
+Be selective with links - only include those that add value to understanding the topic. Maximum 10-15 most relevant links.`
 
-	userPrompt := fmt.Sprintf("Extract entities from this content:\n\nTitle: %s\nURL: %s\n\nContent:\n%s",
-		source.Title, source.URL, source.Content)
+	// Include the links in the prompt so the LLM can analyze them
+	linksSection := ""
+	if len(cleanedLinks) > 0 {
+		linksSection = "\n\nLinks found in content:\n"
+		for i, link := range cleanedLinks {
+			if i > 50 { // Limit to first 50 to save tokens
+				linksSection += fmt.Sprintf("... and %d more links\n", len(cleanedLinks)-50)
+				break
+			}
+			linksSection += fmt.Sprintf("- %s\n", link)
+		}
+	}
+
+	userPrompt := fmt.Sprintf("Analyze this content:\n\nTitle: %s\nSource URL: %s\n\nContent:\n%s%s",
+		source.Title, source.URL, source.Content, linksSection)
 
 	// Limit content length for API
-	if len(userPrompt) > 8000 {
-		userPrompt = userPrompt[:8000] + "\n[content truncated]"
+	if len(userPrompt) > 10000 {
+		userPrompt = userPrompt[:10000] + "\n[content truncated]"
 	}
 
 	response, err := e.llm.CompleteWithSystem(ctx, systemPrompt, userPrompt, "")
@@ -102,7 +149,13 @@ Focus on notable entities only. Be conservative - only extract entities that are
 			Type   string `json:"type"`
 			Note   string `json:"note"`
 		} `json:"relationships"`
-		LinkedSources []string `json:"linked_sources"`
+		Links []struct {
+			URL         string `json:"url"`
+			Title       string `json:"title"`
+			Description string `json:"description"`
+			Relevance   string `json:"relevance"`
+			Category    string `json:"category"`
+		} `json:"links"`
 	}
 
 	if err := json.Unmarshal([]byte(response), &llmResult); err != nil {
@@ -121,9 +174,11 @@ Focus on notable entities only. Be conservative - only extract entities that are
 
 	// Convert to our format
 	result := &ExtractionResult{
-		LinkedSources: append(source.Links, llmResult.LinkedSources...),
+		LinkedSources: []string{},
+		Links:         []ExtractedLink{},
 	}
 
+	// Process entities
 	for _, e := range llmResult.Entities {
 		entityType := parseEntityType(e.Type)
 		result.Entities = append(result.Entities, ExtractedEntity{
@@ -134,6 +189,7 @@ Focus on notable entities only. Be conservative - only extract entities that are
 		})
 	}
 
+	// Process relationships
 	for _, r := range llmResult.Relationships {
 		result.Relationships = append(result.Relationships, ExtractedRelationship{
 			Source: r.Source,
@@ -143,7 +199,116 @@ Focus on notable entities only. Be conservative - only extract entities that are
 		})
 	}
 
+	// Process links - filter out navigation and low-relevance items
+	for _, link := range llmResult.Links {
+		// Skip navigation and advertisement links
+		if link.Category == "navigation" || link.Category == "advertisement" {
+			continue
+		}
+		
+		// Skip low relevance links unless we have very few
+		if link.Relevance == "low" && len(result.Links) > 5 {
+			continue
+		}
+		
+		// Ensure URL is absolute
+		absoluteURL := e.makeAbsoluteURL(link.URL, source.URL)
+		
+		result.Links = append(result.Links, ExtractedLink{
+			URL:         absoluteURL,
+			Title:       link.Title,
+			Description: link.Description,
+			Relevance:   link.Relevance,
+			Category:    link.Category,
+		})
+		
+		// Also add to simple list for backward compatibility
+		result.LinkedSources = append(result.LinkedSources, absoluteURL)
+	}
+
 	return result, nil
+}
+
+// cleanLinks removes duplicates and obviously irrelevant links
+func (e *Extractor) cleanLinks(links []string, sourceURL string) []string {
+	seen := make(map[string]bool)
+	cleaned := []string{}
+	
+	// Could parse source URL for comparison if needed
+	// Currently just removing duplicates and obvious irrelevant links
+	
+	for _, link := range links {
+		// Skip if already seen
+		if seen[link] {
+			continue
+		}
+		seen[link] = true
+		
+		// Skip fragment-only links
+		if strings.HasPrefix(link, "#") {
+			continue
+		}
+		
+		// Skip javascript links
+		if strings.HasPrefix(link, "javascript:") {
+			continue
+		}
+		
+		// Skip mailto links
+		if strings.HasPrefix(link, "mailto:") {
+			continue
+		}
+		
+		// Skip common navigation patterns
+		lower := strings.ToLower(link)
+		skipPatterns := []string{
+			"/login", "/signin", "/signup", "/register",
+			"/about", "/contact", "/privacy", "/terms",
+			"/cookie", "/help", "/support", "/faq",
+			"facebook.com", "twitter.com", "instagram.com",
+			"linkedin.com", "youtube.com", "tiktok.com",
+		}
+		
+		skip := false
+		for _, pattern := range skipPatterns {
+			if strings.Contains(lower, pattern) {
+				skip = true
+				break
+			}
+		}
+		if skip {
+			continue
+		}
+		
+		// Make relative URLs absolute
+		absoluteURL := e.makeAbsoluteURL(link, sourceURL)
+		cleaned = append(cleaned, absoluteURL)
+	}
+	
+	return cleaned
+}
+
+// makeAbsoluteURL converts relative URLs to absolute
+func (e *Extractor) makeAbsoluteURL(link, baseURL string) string {
+	// Already absolute
+	if strings.HasPrefix(link, "http://") || strings.HasPrefix(link, "https://") {
+		return link
+	}
+	
+	// Parse base URL
+	base, err := url.Parse(baseURL)
+	if err != nil {
+		return link
+	}
+	
+	// Parse relative URL
+	rel, err := url.Parse(link)
+	if err != nil {
+		return link
+	}
+	
+	// Resolve relative to base
+	return base.ResolveReference(rel).String()
 }
 
 // parseEntityType converts string to EntityType

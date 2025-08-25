@@ -5,10 +5,28 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 )
+
+// FetchError provides detailed error information for fetch failures
+type FetchError struct {
+	URL        string
+	StatusCode int
+	Message    string
+	NeedsAuth  bool
+	Err        error
+}
+
+func (e *FetchError) Error() string {
+	if e.NeedsAuth {
+		return fmt.Sprintf("%s: %s (authentication required)", e.URL, e.Message)
+	}
+	return fmt.Sprintf("%s: %s", e.URL, e.Message)
+}
 
 // WebFetcher handles generic web URLs
 type WebFetcher struct {
@@ -41,12 +59,32 @@ func (w *WebFetcher) Fetch(ctx context.Context, sourceURL string) (*Source, erro
 	
 	resp, err := w.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch URL: %w", err)
+		return nil, &FetchError{
+			URL:     sourceURL,
+			Err:     err,
+			Message: "failed to fetch URL",
+		}
 	}
 	defer resp.Body.Close()
 	
+	// Check for authentication/paywall indicators
+	if resp.StatusCode == http.StatusUnauthorized || 
+	   resp.StatusCode == http.StatusPaymentRequired ||
+	   resp.StatusCode == http.StatusForbidden {
+		return nil, &FetchError{
+			URL:          sourceURL,
+			StatusCode:   resp.StatusCode,
+			Message:      "authentication required",
+			NeedsAuth:    true,
+		}
+	}
+	
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
+		return nil, &FetchError{
+			URL:        sourceURL,
+			StatusCode: resp.StatusCode,
+			Message:    fmt.Sprintf("HTTP %d: %s", resp.StatusCode, resp.Status),
+		}
 	}
 	
 	// Read body
@@ -56,6 +94,23 @@ func (w *WebFetcher) Fetch(ctx context.Context, sourceURL string) (*Source, erro
 	}
 	
 	html := string(body)
+	
+	// Check for common paywall/login indicators in content
+	lowerHTML := strings.ToLower(html)
+	if (strings.Contains(lowerHTML, "please log in") || 
+	    strings.Contains(lowerHTML, "please sign in") ||
+	    strings.Contains(lowerHTML, "subscribe to continue") ||
+	    strings.Contains(lowerHTML, "create a free account") ||
+	    strings.Contains(lowerHTML, "you've reached your limit") ||
+	    strings.Contains(lowerHTML, "exclusive content for subscribers") ||
+	    strings.Contains(lowerHTML, "cloudflare") && strings.Contains(lowerHTML, "checking your browser")) &&
+	    len(html) < 50000 { // Paywalls tend to be small
+		return nil, &FetchError{
+			URL:       sourceURL,
+			Message:   "detected paywall or authentication page",
+			NeedsAuth: true,
+		}
+	}
 	
 	// Extract title
 	title := extractTitle(html)
@@ -217,4 +272,107 @@ func extractHTMLLinks(html string) []string {
 	}
 	
 	return links
+}
+
+// FetchFromClipboard creates a Source from clipboard content
+func (w *WebFetcher) FetchFromClipboard(sourceURL string) (*Source, error) {
+	// Get clipboard content based on OS
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("pbpaste")
+	case "linux":
+		// Try xclip first, then xsel
+		if _, err := exec.LookPath("xclip"); err == nil {
+			cmd = exec.Command("xclip", "-selection", "clipboard", "-o")
+		} else if _, err := exec.LookPath("xsel"); err == nil {
+			cmd = exec.Command("xsel", "--clipboard", "--output")
+		} else {
+			return nil, fmt.Errorf("no clipboard tool found (install xclip or xsel)")
+		}
+	default:
+		return nil, fmt.Errorf("clipboard access not supported on %s", runtime.GOOS)
+	}
+	
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read clipboard: %w", err)
+	}
+	
+	content := string(output)
+	if len(content) == 0 {
+		return nil, fmt.Errorf("clipboard is empty")
+	}
+	
+	// Try to extract a title from the content
+	title := "Manual capture"
+	lines := strings.Split(content, "\n")
+	if len(lines) > 0 && len(lines[0]) > 0 && len(lines[0]) < 200 {
+		// Use first line as title if it's reasonable
+		title = strings.TrimSpace(lines[0])
+	}
+	
+	// Check if content looks like HTML
+	isHTML := strings.Contains(content, "<html") || strings.Contains(content, "<body") || 
+	          strings.Contains(content, "<article") || strings.Contains(content, "<p>")
+	
+	var markdown string
+	var links []string
+	
+	if isHTML {
+		// Process as HTML
+		markdown = htmlToMarkdown(content)
+		links = extractHTMLLinks(content)
+		
+		// Try to extract title from HTML
+		if extractedTitle := extractTitle(content); extractedTitle != "Untitled" {
+			title = extractedTitle
+		}
+	} else {
+		// Treat as plain text/markdown
+		markdown = content
+		// Extract URLs from plain text
+		urlRe := regexp.MustCompile(`https?://[^\s<>"{}|\\^` + "`" + `\[\]]+`)
+		matches := urlRe.FindAllString(content, -1)
+		seen := make(map[string]bool)
+		for _, match := range matches {
+			if !seen[match] {
+				links = append(links, match)
+				seen[match] = true
+			}
+		}
+	}
+	
+	source := &Source{
+		URL:        sourceURL,
+		Title:      title,
+		Content:    markdown,
+		RawContent: content,
+		Links:      links,
+		Metadata: map[string]string{
+			"fetched_at":    time.Now().Format(time.RFC3339),
+			"domain":        ExtractDomain(sourceURL),
+			"capture_method": "clipboard",
+		},
+	}
+	
+	return source, nil
+}
+
+// OpenInBrowser opens a URL in the default browser
+func OpenInBrowser(url string) error {
+	var cmd *exec.Cmd
+	
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "linux":
+		cmd = exec.Command("xdg-open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	default:
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+	
+	return cmd.Start()
 }

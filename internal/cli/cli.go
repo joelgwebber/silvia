@@ -187,13 +187,8 @@ func (c *CLI) processCommand(ctx context.Context, input string) error {
 			return fmt.Errorf("usage: /search <query>")
 		}
 		return c.searchEntities(strings.Join(args, " "))
-	case "/queue":
-		return c.showQueue()
-	case "/explore":
-		if len(args) > 0 && args[0] == "queue" {
-			return c.exploreQueue(ctx)
-		}
-		return fmt.Errorf("usage: /explore queue")
+	case "/queue", "/q":
+		return c.InteractiveQueueExplorer(ctx)
 	case "/related", "/connections":
 		if len(args) < 1 {
 			return fmt.Errorf("usage: /related <entity-id>")
@@ -225,8 +220,7 @@ func (c *CLI) showHelp() {
 	fmt.Println("  /ingest <url>              - Ingest a new source")
 	fmt.Println("  /show <entity-id>          - Display an entity (tab for autocomplete)")
 	fmt.Println("  /search <query>            - Search for entities")
-	fmt.Println("  /queue                     - Show pending sources")
-	fmt.Println("  /explore queue             - Process sources in queue")
+	fmt.Println("  /queue, /q                 - Manage pending sources")
 	fmt.Println("  /related <entity-id>       - Show related entities (tab for autocomplete)")
 	fmt.Println("  /create <type> <id>        - Create new entity")
 	fmt.Println("  /link <from> <type> <to>   - Create relationship")

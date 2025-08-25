@@ -10,7 +10,13 @@ sources:
 # Doug Wilson
 
 
+
+
 Pastor advocating for Christian theocracy, influential in the New Right movement
+
+
+
+
 
 
 
