@@ -6,7 +6,7 @@ aliases:
 created: 2025-08-23T23:56:33.025886-04:00
 updated: 2025-08-23T23:56:33.025888-04:00
 sources:
-    - https://www.politico.com/news/magazine/2025/05/23/doug-wilson-new-right-pastor-hegseth-trump-officials-00355376
+    - works/politico-wilson-new-right-2025
 ---
 
 # Donald Trump

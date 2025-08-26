@@ -3,6 +3,7 @@ package graph
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -53,19 +54,25 @@ func (e *Entity) AddRelationship(relType string, target string, date *time.Time,
 
 // AddBackReference adds a back reference from another entity
 func (e *Entity) AddBackReference(source string, relType string, note string) {
+	// Check if this back reference already exists
+	for i, ref := range e.BackRefs {
+		if ref.Source == source {
+			// Update existing reference if type changed
+			if ref.Type != relType {
+				e.BackRefs[i].Type = relType
+				e.BackRefs[i].Note = note
+				e.Metadata.Updated = time.Now()
+			}
+			return
+		}
+	}
+
+	// Add new back reference
 	backRef := BackReference{
 		Source: source,
 		Type:   relType,
 		Note:   note,
 	}
-	
-	// Check if this back reference already exists
-	for _, ref := range e.BackRefs {
-		if ref.Source == source && ref.Type == relType {
-			return
-		}
-	}
-	
 	e.BackRefs = append(e.BackRefs, backRef)
 	e.Metadata.Updated = time.Now()
 }
@@ -73,10 +80,8 @@ func (e *Entity) AddBackReference(source string, relType string, note string) {
 // AddSource adds a source reference to the entity
 func (e *Entity) AddSource(source string) {
 	// Check if source already exists
-	for _, s := range e.Metadata.Sources {
-		if s == source {
-			return
-		}
+	if slices.Contains(e.Metadata.Sources, source) {
+		return
 	}
 	e.Metadata.Sources = append(e.Metadata.Sources, source)
 	e.Metadata.Updated = time.Now()
@@ -112,3 +117,46 @@ func (e *Entity) Validate() error {
 	}
 	return nil
 }
+
+// OutgoingLink represents any link from this entity to another
+type OutgoingLink struct {
+	Target string // Entity ID or URL
+	Type   string // Link type: "wiki-link", "source", or relationship type
+	Note   string // Optional note or description
+}
+
+// GetAllOutgoingLinks extracts all outgoing references from the entity
+func (e *Entity) GetAllOutgoingLinks() []OutgoingLink {
+	links := []OutgoingLink{}
+	seen := make(map[string]bool)
+	
+	// Extract wiki-links from content
+	wikiLinks := ExtractWikiLinks(e.Content)
+	for _, target := range wikiLinks {
+		key := "wiki:" + target
+		if !seen[key] {
+			links = append(links, OutgoingLink{
+				Target: target,
+				Type:   "mentioned_in",
+			})
+			seen[key] = true
+		}
+	}
+	
+	// Extract entity references from sources (not URLs)
+	for _, source := range e.Metadata.Sources {
+		if strings.Contains(source, "/") && !strings.Contains(source, "://") {
+			key := "source:" + source
+			if !seen[key] {
+				links = append(links, OutgoingLink{
+					Target: source,
+					Type:   "sourced_from",
+				})
+				seen[key] = true
+			}
+		}
+	}
+	
+	return links
+}
+

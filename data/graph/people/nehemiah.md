@@ -4,7 +4,7 @@ type: person
 created: 2025-08-23T23:57:37.37703-04:00
 updated: 2025-08-23T23:57:37.377031-04:00
 sources:
-    - https://dougwils.com/books-and-culture/s7-engaging-the-culture/a-mission-to-babylon.html
+    - sources/dougwils-mission-babylon-2025
 ---
 
 # Nehemiah

@@ -4,7 +4,7 @@ type: person
 created: 2025-08-24T13:48:19.375271-04:00
 updated: 2025-08-24T13:48:19.375281-04:00
 sources:
-    - https://open.spotify.com/episode/3HYgx4GuY9Z8J7o6VKIp0l
+    - sources/carlson-wilson-podcast-2024
 ---
 
 # Pastor Doug Wilson

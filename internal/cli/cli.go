@@ -139,7 +139,7 @@ func (c *CLI) listEntityIDs() func(string) []string {
 		if err != nil {
 			return []string{}
 		}
-		
+
 		var ids []string
 		for _, entity := range entities {
 			ids = append(ids, entity.Metadata.ID)
@@ -154,7 +154,7 @@ func (c *CLI) processInput(ctx context.Context, input string) error {
 	if strings.HasPrefix(input, "/") {
 		return c.processCommand(ctx, input)
 	}
-	
+
 	// Otherwise treat as natural language query
 	return c.handleNaturalQuery(ctx, input)
 }
@@ -206,6 +206,13 @@ func (c *CLI) processCommand(ctx context.Context, input string) error {
 		return c.createLink(args[0], args[1], args[2])
 	case "/clear":
 		fmt.Print("\033[H\033[2J") // Clear screen
+	case "/rebuild-refs":
+		// Rebuild all back-references
+		fmt.Println("Rebuilding all back-references in the graph...")
+		if err := c.graph.RebuildAllBackReferences(); err != nil {
+			return fmt.Errorf("failed to rebuild references: %w", err)
+		}
+		fmt.Println(SuccessStyle.Render("✓ Back-references rebuilt successfully"))
 	default:
 		return fmt.Errorf("unknown command: %s (type /help for commands)", command)
 	}
@@ -224,6 +231,7 @@ func (c *CLI) showHelp() {
 	fmt.Println("  /related <entity-id>       - Show related entities (tab for autocomplete)")
 	fmt.Println("  /create <type> <id>        - Create new entity")
 	fmt.Println("  /link <from> <type> <to>   - Create relationship")
+	fmt.Println("  /rebuild-refs              - Rebuild all back-references")
 	fmt.Println("  /clear                     - Clear screen")
 	fmt.Println("  /exit, /quit, /q           - Exit the program")
 	fmt.Println("\nTips:")
@@ -332,25 +340,75 @@ func (c *CLI) searchEntities(query string) error {
 
 // showRelated shows entities related to the given entity
 func (c *CLI) showRelated(entityID string) error {
-	related, err := c.graph.GetRelatedEntities(entityID)
+	result, err := c.graph.GetRelatedEntities(entityID)
 	if err != nil {
 		return fmt.Errorf("failed to get related entities: %w", err)
 	}
 
-	if len(related) == 0 {
+	if len(result.All) == 0 && len(result.BrokenLinks) == 0 {
 		fmt.Println("No related entities found.")
 		return nil
 	}
 
-	fmt.Printf("\n%d related entities:\n", len(related))
-	for _, entity := range related {
-		fmt.Printf("  %s %s (%s)\n",
-			getEntityIcon(entity.Metadata.Type),
-			entity.Title,
-			entity.Metadata.ID)
+	// Display results
+	fmt.Printf("\n📊 Related entities for: %s %s\n", 
+		getEntityIcon(result.Entity.Metadata.Type), result.Entity.Title)
+	fmt.Println(strings.Repeat("─", 60))
+
+	// Show outgoing relationships by type
+	if len(result.OutgoingByType) > 0 {
+		fmt.Println(SubheaderStyle.Render("→ Outgoing:"))
+		for relType, entities := range result.OutgoingByType {
+			// Format the relationship type for display
+			displayType := strings.ReplaceAll(relType, "_", " ")
+			displayType = strings.Title(displayType)
+			
+			fmt.Printf("  %s:\n", InfoStyle.Render(displayType))
+			for _, e := range entities {
+				fmt.Printf("    %s %s %s\n",
+					getEntityIcon(e.Metadata.Type),
+					HighlightStyle.Render(e.Title),
+					DimStyle.Render("("+e.Metadata.ID+")"))
+			}
+		}
+		fmt.Println()
+	}
+
+	// Show incoming relationships by type
+	if len(result.IncomingByType) > 0 {
+		fmt.Println(SubheaderStyle.Render("← Incoming:"))
+		for relType, entities := range result.IncomingByType {
+			// Format the relationship type for display
+			displayType := strings.ReplaceAll(relType, "_", " ")
+			displayType = strings.Title(displayType)
+			
+			fmt.Printf("  %s:\n", InfoStyle.Render(displayType))
+			for _, e := range entities {
+				fmt.Printf("    %s %s %s\n",
+					getEntityIcon(e.Metadata.Type),
+					HighlightStyle.Render(e.Title),
+					DimStyle.Render("("+e.Metadata.ID+")"))
+			}
+		}
+		fmt.Println()
+	}
+
+	// Show broken links
+	if len(result.BrokenLinks) > 0 {
+		fmt.Println(WarningStyle.Render("⚠️  Broken links (entities not found):"))
+		for _, link := range result.BrokenLinks {
+			fmt.Printf("  %s %s\n",
+				ErrorStyle.Render("✗"),
+				DimStyle.Render(link))
+		}
+		fmt.Println()
+	}
+
+	fmt.Printf("Total: %d related entities", len(result.All))
+	if len(result.BrokenLinks) > 0 {
+		fmt.Printf(" (%s)", WarningStyle.Render(fmt.Sprintf("%d broken links", len(result.BrokenLinks))))
 	}
 	fmt.Println()
-
 	return nil
 }
 
@@ -510,7 +568,7 @@ func (c *CLI) generateEntityID(name string, entityType graph.EntityType) string 
 	id := strings.ToLower(name)
 	id = regexp.MustCompile(`[^a-z0-9-]+`).ReplaceAllString(id, "-")
 	id = strings.Trim(id, "-")
-	
+
 	// Add type prefix
 	var prefix string
 	switch entityType {
@@ -527,7 +585,7 @@ func (c *CLI) generateEntityID(name string, entityType graph.EntityType) string 
 	default:
 		prefix = "entities/"
 	}
-	
+
 	return prefix + id
 }
 
@@ -537,7 +595,7 @@ func (c *CLI) saveSource(source *sources.Source) error {
 	domain := sources.ExtractDomain(source.URL)
 	timestamp := time.Now().Format("20060102-150405")
 	filename := fmt.Sprintf("%s-%s.md", domain, timestamp)
-	
+
 	// Determine subdirectory based on domain
 	var subdir string
 	if strings.Contains(domain, "bsky") {
@@ -547,16 +605,16 @@ func (c *CLI) saveSource(source *sources.Source) error {
 	} else {
 		subdir = "web"
 	}
-	
+
 	// Create full path
 	filePath := filepath.Join(c.dataDir, "sources", subdir, filename)
-	
+
 	// Ensure directory exists
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
-	
+
 	// Create markdown with metadata
 	content := fmt.Sprintf(`---
 url: %s
@@ -579,12 +637,12 @@ Source: %s
 		source.URL,
 		source.Content,
 	)
-	
+
 	// Write file
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write source file: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -593,7 +651,7 @@ func (c *CLI) isSourceProcessed(url string) bool {
 	// Check if source file exists
 	domain := sources.ExtractDomain(url)
 	sourcesDir := filepath.Join(c.dataDir, "sources")
-	
+
 	// Check all subdirectories
 	subdirs := []string{"web", "bsky", "pdfs"}
 	for _, subdir := range subdirs {
@@ -602,7 +660,7 @@ func (c *CLI) isSourceProcessed(url string) bool {
 		if err != nil {
 			continue
 		}
-		
+
 		// Check if any file contains this URL
 		for _, file := range files {
 			if strings.Contains(file.Name(), domain) {
@@ -612,6 +670,6 @@ func (c *CLI) isSourceProcessed(url string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }

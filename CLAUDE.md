@@ -65,14 +65,24 @@ data/
 ```
 
 ### Entity Format
-Entities are stored as markdown files with YAML frontmatter containing metadata. Relationships use wiki-style `[[target]]` links. The system automatically maintains bidirectional references.
+Entities are stored as markdown files with YAML frontmatter containing metadata. Relationships use wiki-style `[[target]]` links anywhere in the content. The system treats all links equally, regardless of where they appear in the document.
+
+### Relationship System
+- **Unified extraction**: All wiki-links `[[target]]` are treated as relationships
+- **No special sections**: Any section can contain links (except Back-references)
+- **Automatic categorization**: Links are categorized by their context:
+  - Wiki-links in content → "mentioned_in"
+  - Sources in frontmatter → "sourced_from"
+- **Back-references**: Automatically maintained by the system
+- **Cache invalidation**: Files modified externally are automatically reloaded
 
 ### Key Patterns
 - All entity IDs include paths (e.g., `people/douglas-wilson`)
 - File paths in data/ mirror entity IDs
-- Relationships are stored in entity markdown body
-- Back-references are auto-maintained in a special section
+- All wiki-links are tracked as relationships
+- Back-references are auto-maintained and rebuilt with `/rebuild-refs`
 - Sources are archived before processing
+- External file changes are detected via modification time checks
 
 ## Environment Variables
 
@@ -84,11 +94,14 @@ Required for external integrations:
 ## CLI Commands
 
 The interactive CLI supports both structured commands and natural language:
-- `search <query>` - Search entities
-- `show <entity-id>` - Display entity details
-- `related <entity-id>` - Show connected entities
-- `create <type> <id>` - Create new entity
-- `link <from> <type> <to>` - Add relationship
-- `ingest <url>` - Fetch and analyze source
-- `queue` / `explore queue` - Manage pending sources
+- `/search <query>` - Search entities
+- `/show <entity-id>` - Display entity details
+- `/related <entity-id>` - Show connected entities
+- `/create <type> <id>` - Create new entity
+- `/link <from> <type> <to>` - Add relationship
+- `/ingest <url>` - Fetch and analyze source
+- `/queue` / `/explore queue` - Manage pending sources
+- `/rebuild-refs` - Rebuild all back-references in the graph
+- `/clear` - Clear screen
+- `/help` - Show available commands
 

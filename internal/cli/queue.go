@@ -46,7 +46,7 @@ func NewSourceQueue() *SourceQueue {
 // LoadQueue loads the queue from disk
 func (q *SourceQueue) LoadFromFile(filePath string) error {
 	q.filePath = filePath
-	
+
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -69,7 +69,7 @@ func (q *SourceQueue) LoadFromFile(filePath string) error {
 
 	// Re-heapify
 	heap.Init(q)
-	
+
 	return nil
 }
 
@@ -139,7 +139,7 @@ func (q *SourceQueue) GetAll() []*QueuedSource {
 	// Make a copy to avoid modifying the heap
 	result := make([]*QueuedSource, len(q.items))
 	copy(result, q.items)
-	
+
 	// Sort by priority (heap is min-heap, but we want high priority first)
 	for i := 0; i < len(result); i++ {
 		for j := i + 1; j < len(result); j++ {
@@ -148,7 +148,7 @@ func (q *SourceQueue) GetAll() []*QueuedSource {
 			}
 		}
 	}
-	
+
 	return result
 }
 
@@ -166,7 +166,7 @@ func (q *SourceQueue) Remove(url string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -242,3 +242,4 @@ func ParsePriority(s string) SourcePriority {
 		return PriorityMedium
 	}
 }
+

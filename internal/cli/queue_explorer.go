@@ -96,14 +96,14 @@ func (m queueExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		keys := newQueueKeyMap()
-		
+
 		// Handle key presses
 		switch {
 		case key.Matches(msg, keys.quit):
 			m.quitting = true
 			m.aborted = true
 			return m, tea.Quit
-			
+
 		case key.Matches(msg, keys.process):
 			idx := m.list.Index()
 			if idx < len(m.items) {
@@ -115,7 +115,7 @@ func (m queueExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.list.CursorDown()
 				}
 			}
-			
+
 		case key.Matches(msg, keys.skip):
 			idx := m.list.Index()
 			if idx < len(m.items) {
@@ -127,7 +127,7 @@ func (m queueExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.list.CursorDown()
 				}
 			}
-			
+
 		case key.Matches(msg, keys.preview):
 			idx := m.list.Index()
 			if idx < len(m.items) {
@@ -135,22 +135,22 @@ func (m queueExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selectedItems[idx] = QueueActionPreview
 				m.updateItemDisplay(idx)
 			}
-			
+
 		case key.Matches(msg, keys.execute):
 			// Execute all marked actions
 			m.quitting = true
 			return m, tea.Quit
-			
+
 		case msg.String() == "ctrl+c":
 			m.quitting = true
 			m.aborted = true
 			return m, tea.Quit
 		}
-		
+
 	case tea.WindowSizeMsg:
 		m.list.SetSize(msg.Width, msg.Height-4)
 	}
-	
+
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd
@@ -160,7 +160,7 @@ func (m queueExplorerModel) View() string {
 	if m.quitting {
 		return ""
 	}
-	
+
 	// Count actions
 	processCount := 0
 	skipCount := 0
@@ -175,9 +175,9 @@ func (m queueExplorerModel) View() string {
 			previewCount++
 		}
 	}
-	
+
 	header := HeaderStyle.Render(fmt.Sprintf("Queue Explorer (%d items)", len(m.items)))
-	
+
 	status := fmt.Sprintf("\n%s Process: %d | %s Skip: %d | %s Preview: %d",
 		SuccessStyle.Render("✓"),
 		processCount,
@@ -186,9 +186,9 @@ func (m queueExplorerModel) View() string {
 		InfoStyle.Render("👁"),
 		previewCount,
 	)
-	
+
 	help := helpStyle.Render("\n[p] process • [s] skip • [v] preview • [x] execute • [q] quit")
-	
+
 	return fmt.Sprintf("%s%s\n\n%s%s", header, status, m.list.View(), help)
 }
 
@@ -196,16 +196,16 @@ func (m *queueExplorerModel) updateItemDisplay(idx int) {
 	if idx >= len(m.items) {
 		return
 	}
-	
+
 	item := &m.items[idx]
 	action := m.selectedItems[idx]
-	
+
 	// Update title with action indicator
 	baseTitle := item.source.URL
 	if len(baseTitle) > 60 {
 		baseTitle = baseTitle[:57] + "..."
 	}
-	
+
 	switch action {
 	case QueueActionProcess:
 		item.title = SuccessStyle.Render("✓ ") + URLStyle.Render(baseTitle)
@@ -216,7 +216,7 @@ func (m *queueExplorerModel) updateItemDisplay(idx int) {
 	default:
 		item.title = "  " + URLStyle.Render(baseTitle)
 	}
-	
+
 	// Update the list
 	items := make([]list.Item, len(m.items))
 	for i := range m.items {
@@ -232,7 +232,7 @@ func (c *CLI) InteractiveQueueExplorer(ctx context.Context) error {
 		fmt.Println(DimStyle.Render("Queue is empty."))
 		return nil
 	}
-	
+
 	// Create items for display
 	items := make([]queueItem, len(queueItems))
 	for i, source := range queueItems {
@@ -240,12 +240,12 @@ func (c *CLI) InteractiveQueueExplorer(ctx context.Context) error {
 		if len(displayURL) > 60 {
 			displayURL = displayURL[:57] + "..."
 		}
-		
+
 		desc := fmt.Sprintf("[%s]", FormatPriority(source.Priority))
 		if source.Description != "" {
 			desc += " - " + source.Description
 		}
-		
+
 		items[i] = queueItem{
 			source:      source,
 			action:      QueueActionNone,
@@ -253,13 +253,13 @@ func (c *CLI) InteractiveQueueExplorer(ctx context.Context) error {
 			description: desc,
 		}
 	}
-	
+
 	// Create list items
 	listItems := make([]list.Item, len(items))
 	for i, item := range items {
 		listItems[i] = item
 	}
-	
+
 	// Create list
 	const defaultHeight = 20
 	l := list.New(listItems, list.NewDefaultDelegate(), 0, defaultHeight)
@@ -268,7 +268,7 @@ func (c *CLI) InteractiveQueueExplorer(ctx context.Context) error {
 	l.SetFilteringEnabled(true)
 	l.Styles.Title = titleStyle
 	l.SetStatusBarItemName("source", "sources")
-	
+
 	// Create model
 	m := queueExplorerModel{
 		list:          l,
@@ -277,21 +277,21 @@ func (c *CLI) InteractiveQueueExplorer(ctx context.Context) error {
 		ctx:           ctx,
 		cli:           c,
 	}
-	
+
 	// Run the program
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	result, err := p.Run()
 	if err != nil {
 		return err
 	}
-	
+
 	// Process results
 	finalModel := result.(queueExplorerModel)
 	if finalModel.aborted {
 		fmt.Println(InfoStyle.Render("Queue exploration cancelled."))
 		return nil
 	}
-	
+
 	// Execute actions
 	return c.executeQueueActions(ctx, finalModel.items, finalModel.selectedItems)
 }
@@ -305,35 +305,35 @@ func (c *CLI) executeQueueActions(ctx context.Context, items []queueItem, action
 			totalActions++
 		}
 	}
-	
+
 	if totalActions == 0 {
 		fmt.Println(DimStyle.Render("No actions selected."))
 		return nil
 	}
-	
+
 	fmt.Println()
 	fmt.Println(HeaderStyle.Render(fmt.Sprintf("Executing %d actions", totalActions)))
 	fmt.Println()
-	
+
 	processedCount := 0
 	skippedCount := 0
 	errors := []string{}
-	
+
 	for i, item := range items {
 		action := actions[i]
 		if action == QueueActionNone {
 			continue
 		}
-		
+
 		switch action {
 		case QueueActionProcess:
-			fmt.Printf("%s %s\n", 
+			fmt.Printf("%s %s\n",
 				InfoStyle.Render("Processing:"),
 				URLStyle.Render(item.source.URL))
-			
+
 			// Remove from queue
 			c.queue.Remove(item.source.URL)
-			
+
 			// Process the source
 			if err := c.ingestSource(ctx, item.source.URL); err != nil {
 				errors = append(errors, fmt.Sprintf("%s: %v", item.source.URL, err))
@@ -342,21 +342,21 @@ func (c *CLI) executeQueueActions(ctx context.Context, items []queueItem, action
 				processedCount++
 			}
 			fmt.Println()
-			
+
 		case QueueActionSkip:
 			fmt.Printf("%s %s\n",
 				WarningStyle.Render("Skipping:"),
 				DimStyle.Render(item.source.URL))
-			
+
 			// Remove from queue
 			c.queue.Remove(item.source.URL)
 			skippedCount++
-			
+
 		case QueueActionPreview:
 			fmt.Printf("%s %s\n",
 				InfoStyle.Render("Preview:"),
 				URLStyle.Render(item.source.URL))
-			
+
 			// Preview implementation
 			if err := c.previewSource(ctx, item.source.URL); err != nil {
 				fmt.Println(FormatWarning(fmt.Sprintf("Preview failed: %v", err)))
@@ -364,10 +364,10 @@ func (c *CLI) executeQueueActions(ctx context.Context, items []queueItem, action
 			fmt.Println()
 		}
 	}
-	
+
 	// Save queue after changes
 	c.queue.SaveToFile()
-	
+
 	// Summary
 	fmt.Println()
 	fmt.Println(HeaderStyle.Render("Summary"))
@@ -383,14 +383,14 @@ func (c *CLI) executeQueueActions(ctx context.Context, items []queueItem, action
 			fmt.Printf("  %s\n", DimStyle.Render(err))
 		}
 	}
-	
+
 	remainingCount := c.queue.Len()
 	if remainingCount > 0 {
 		fmt.Println(InfoStyle.Render(fmt.Sprintf("Queue has %d remaining sources", remainingCount)))
 	} else {
 		fmt.Println(DimStyle.Render("Queue is now empty"))
 	}
-	
+
 	return nil
 }
 
@@ -401,12 +401,12 @@ func (c *CLI) previewSource(ctx context.Context, url string) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch source: %w", err)
 	}
-	
+
 	// Display preview
 	fmt.Println()
 	fmt.Println(SubheaderStyle.Render("Title: ") + source.Title)
 	fmt.Println(SubheaderStyle.Render("URL: ") + URLStyle.Render(source.URL))
-	
+
 	// Show first part of content
 	content := source.Content
 	if len(content) > 500 {
@@ -415,7 +415,7 @@ func (c *CLI) previewSource(ctx context.Context, url string) error {
 	fmt.Println()
 	fmt.Println(SubheaderStyle.Render("Content Preview:"))
 	fmt.Println(DimStyle.Render(content))
-	
+
 	// Show links found
 	if len(source.Links) > 0 {
 		fmt.Println()
@@ -425,7 +425,7 @@ func (c *CLI) previewSource(ctx context.Context, url string) error {
 			previewCount = len(source.Links)
 		}
 		for i := 0; i < previewCount; i++ {
-			fmt.Printf("  %s %s\n", 
+			fmt.Printf("  %s %s\n",
 				DimStyle.Render("•"),
 				URLStyle.Render(source.Links[i]))
 		}
@@ -433,6 +433,7 @@ func (c *CLI) previewSource(ctx context.Context, url string) error {
 			fmt.Printf("  %s\n", DimStyle.Render(fmt.Sprintf("... and %d more", len(source.Links)-previewCount)))
 		}
 	}
-	
+
 	return nil
 }
+

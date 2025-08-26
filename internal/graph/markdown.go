@@ -19,6 +19,25 @@ var (
 	frontmatterRegex = regexp.MustCompile(`(?s)^---\n(.*?)\n---\n(.*)`)
 )
 
+// ExtractWikiLinks extracts all wiki-link targets from content
+func ExtractWikiLinks(content string) []string {
+	matches := wikiLinkRegex.FindAllStringSubmatch(content, -1)
+	links := make([]string, 0, len(matches))
+	seen := make(map[string]bool)
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			target := match[1]
+			if !seen[target] {
+				links = append(links, target)
+				seen[target] = true
+			}
+		}
+	}
+
+	return links
+}
+
 // LoadEntityFromFile reads an entity from a markdown file
 func LoadEntityFromFile(filePath string) (*Entity, error) {
 	content, err := os.ReadFile(filePath)
@@ -51,16 +70,41 @@ func ParseEntityMarkdown(content string) (*Entity, error) {
 
 	// Parse body sections
 	sections := splitMarkdownSections(body)
-	
+
 	// Extract title (first heading)
 	if title, ok := sections["title"]; ok {
 		entity.Title = strings.TrimPrefix(title, "# ")
 	}
 
-	// Extract main content
-	if content, ok := sections["content"]; ok {
-		entity.Content = content
+	// Include ALL content (not just the first section) for all entities
+	// This ensures wiki-links in any section are captured
+	// Exclude only Back-references sections (which are system-maintained)
+	lines := strings.Split(body, "\n")
+	contentLines := []string{}
+	inBackRefs := false
+
+	for _, line := range lines {
+		if strings.HasPrefix(line, "## Back-references") || strings.HasPrefix(line, "## Referenced by") {
+			inBackRefs = true
+			continue
+		} else if strings.HasPrefix(line, "## ") {
+			// New section, reset flag
+			inBackRefs = false
+		}
+
+		// Skip title line (already extracted)
+		if strings.HasPrefix(line, "# ") {
+			continue
+		}
+
+		// Add line if not in back-refs section
+		// (Include everything else, including Relationships sections)
+		if !inBackRefs {
+			contentLines = append(contentLines, line)
+		}
 	}
+
+	entity.Content = strings.TrimSpace(strings.Join(contentLines, "\n"))
 
 	// Parse relationships
 	if relSection, ok := sections["relationships"]; ok {
@@ -84,7 +128,7 @@ func SaveEntityToFile(entity *Entity, filePath string) error {
 	}
 
 	content := FormatEntityMarkdown(entity)
-	
+
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
@@ -114,7 +158,7 @@ func FormatEntityMarkdown(entity *Entity) string {
 	// Write relationships
 	if len(entity.Relationships) > 0 {
 		buf.WriteString("## Relationships\n\n")
-		
+
 		// Group relationships by type
 		relsByType := make(map[string][]Relationship)
 		for _, rel := range entity.Relationships {
@@ -142,7 +186,10 @@ func FormatEntityMarkdown(entity *Entity) string {
 		buf.WriteString("## Back-references\n")
 		buf.WriteString("<!-- Auto-maintained by the system -->\n")
 		for _, backRef := range entity.BackRefs {
-			buf.WriteString(fmt.Sprintf("- [[%s]] - %s", backRef.Source, backRef.Type))
+			buf.WriteString(fmt.Sprintf("- [[%s]]", backRef.Source))
+			if backRef.Type != "" {
+				buf.WriteString(fmt.Sprintf(" (%s)", backRef.Type))
+			}
 			if backRef.Note != "" {
 				buf.WriteString(fmt.Sprintf(" - %s", backRef.Note))
 			}
@@ -155,13 +202,21 @@ func FormatEntityMarkdown(entity *Entity) string {
 }
 
 // splitMarkdownSections splits markdown content into named sections
+type markdownSection struct {
+	name    string
+	content string
+	order   int
+}
+
 func splitMarkdownSections(content string) map[string]string {
 	sections := make(map[string]string)
+	orderedSections := []markdownSection{}
 	lines := strings.Split(content, "\n")
-	
+
 	currentSection := "content"
 	currentContent := []string{}
-	
+	sectionOrder := 0
+
 	for _, line := range lines {
 		if strings.HasPrefix(line, "# ") {
 			// Main title
@@ -172,8 +227,14 @@ func splitMarkdownSections(content string) map[string]string {
 			// Save previous section
 			if len(currentContent) > 0 {
 				sections[currentSection] = strings.Join(currentContent, "\n")
+				orderedSections = append(orderedSections, markdownSection{
+					name:    currentSection,
+					content: strings.Join(currentContent, "\n"),
+					order:   sectionOrder,
+				})
+				sectionOrder++
 			}
-			
+
 			// Start new section
 			sectionName := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(line, "##")))
 			sectionName = strings.ReplaceAll(sectionName, " ", "-")
@@ -183,12 +244,23 @@ func splitMarkdownSections(content string) map[string]string {
 			currentContent = append(currentContent, line)
 		}
 	}
-	
+
 	// Save last section
 	if len(currentContent) > 0 {
 		sections[currentSection] = strings.Join(currentContent, "\n")
+		orderedSections = append(orderedSections, markdownSection{
+			name:    currentSection,
+			content: strings.Join(currentContent, "\n"),
+			order:   sectionOrder,
+		})
 	}
-	
+
+	// Store ordered sections for reconstruction
+	sections["_ordered"] = ""
+	for _, sec := range orderedSections {
+		sections["_ordered"] += sec.name + "|"
+	}
+
 	return sections
 }
 
@@ -196,11 +268,11 @@ func splitMarkdownSections(content string) map[string]string {
 func parseRelationships(content string) []Relationship {
 	var relationships []Relationship
 	lines := strings.Split(content, "\n")
-	
+
 	currentType := ""
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		
+
 		if strings.HasPrefix(line, "### ") {
 			// New relationship type
 			currentType = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(line, "###")))
@@ -213,12 +285,12 @@ func parseRelationships(content string) []Relationship {
 					Type:   currentType,
 					Target: matches[1],
 				}
-				
+
 				// Extract note (text after the link)
 				afterLink := strings.TrimSpace(wikiLinkRegex.ReplaceAllString(line, ""))
 				afterLink = strings.TrimPrefix(afterLink, "-")
 				afterLink = strings.TrimSpace(afterLink)
-				
+
 				// Check for date in parentheses
 				if dateMatch := regexp.MustCompile(`\((.*?)\)`).FindStringSubmatch(afterLink); len(dateMatch) > 1 {
 					if t, err := time.Parse("January 2006", dateMatch[1]); err == nil {
@@ -227,13 +299,13 @@ func parseRelationships(content string) []Relationship {
 					// Remove date from note
 					afterLink = regexp.MustCompile(`\(.*?\)`).ReplaceAllString(afterLink, "")
 				}
-				
+
 				rel.Note = strings.TrimSpace(strings.TrimPrefix(afterLink, "-"))
 				relationships = append(relationships, rel)
 			}
 		}
 	}
-	
+
 	return relationships
 }
 
@@ -241,7 +313,7 @@ func parseRelationships(content string) []Relationship {
 func parseBackReferences(content string) []BackReference {
 	var backRefs []BackReference
 	lines := strings.Split(content, "\n")
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "- [[") {
@@ -251,23 +323,23 @@ func parseBackReferences(content string) []BackReference {
 				afterLink := strings.TrimSpace(wikiLinkRegex.ReplaceAllString(line, ""))
 				afterLink = strings.TrimPrefix(afterLink, "-")
 				parts := strings.SplitN(afterLink, "-", 2)
-				
+
 				backRef := BackReference{
 					Source: matches[1],
 				}
-				
+
 				if len(parts) > 0 {
 					backRef.Type = strings.TrimSpace(parts[0])
 				}
 				if len(parts) > 1 {
 					backRef.Note = strings.TrimSpace(parts[1])
 				}
-				
+
 				backRefs = append(backRefs, backRef)
 			}
 		}
 	}
-	
+
 	return backRefs
 }
 
@@ -280,16 +352,4 @@ func formatRelationType(relType string) string {
 		}
 	}
 	return strings.Join(words, " ")
-}
-
-// ExtractWikiLinks extracts all wiki-style links from content
-func ExtractWikiLinks(content string) []string {
-	matches := wikiLinkRegex.FindAllStringSubmatch(content, -1)
-	links := make([]string, 0, len(matches))
-	for _, match := range matches {
-		if len(match) > 1 {
-			links = append(links, match[1])
-		}
-	}
-	return links
 }
