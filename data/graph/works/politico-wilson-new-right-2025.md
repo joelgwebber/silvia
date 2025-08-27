@@ -2,7 +2,7 @@
 id: works/politico-wilson-new-right-2025
 type: work
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-26T22:32:44.250116-04:00
+updated: 2025-08-26T23:43:58.978041-04:00
 ---
 
 # Doug Wilson's Moment (Politico, 2025)
@@ -53,7 +53,7 @@ A comprehensive profile of Doug Wilson's rise from fringe Christian nationalist 
 ## Organizations
 
 - [[organizations/christ-church]] - Wilson's church in Moscow
-- [[organizations/crec]] - Denomination Wilson helped found
+- [[organizations/communion-of-reformed-evangelical-churches-crec]] - Denomination Wilson helped found
 - [[organizations/new-founding]] - Venture firm spreading Wilson's vision
 - [[organizations/american-moment]] - Talent pipeline that platformed Wilson
 - [[organizations/turning-point-usa]] - Kirk's organization hosting Wilson
@@ -85,14 +85,13 @@ A comprehensive profile of Doug Wilson's rise from fringe Christian nationalist 
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[concepts/moscow-idaho]] (((((((((((((((((((sourced_from)))))))))))))))))))
-- [[events/2023-american-moment-immigration-event]] ((((((((((((((((((sourced_from))))))))))))))))))
-- [[events/2024-national-conservatism-conference]] (((((((((((((((((sourced_from)))))))))))))))))
-- [[events/2024-turning-point-believers-summit]] ((((((((((((((((sourced_from))))))))))))))))
-- [[organizations/american-moment]] (((((((((((((((sourced_from)))))))))))))))
-- [[organizations/christ-church]] ((((((((((((((sourced_from))))))))))))))
-- [[organizations/communion-of-reformed-evangelical-churches-crec]] (((((((((((((sourced_from)))))))))))))
-- [[organizations/crec]] ((((((((((((sourced_from))))))))))))
+- [[concepts/moscow-idaho]] ((((((((((((((((((sourced_from))))))))))))))))))
+- [[events/2023-american-moment-immigration-event]] (((((((((((((((((sourced_from)))))))))))))))))
+- [[events/2024-national-conservatism-conference]] ((((((((((((((((sourced_from))))))))))))))))
+- [[events/2024-turning-point-believers-summit]] (((((((((((((((sourced_from)))))))))))))))
+- [[organizations/american-moment]] ((((((((((((((sourced_from))))))))))))))
+- [[organizations/christ-church]] (((((((((((((sourced_from)))))))))))))
+- [[organizations/communion-of-reformed-evangelical-churches-crec]] ((((((((((((sourced_from))))))))))))
 - [[organizations/gop]] (((((((((((sourced_from)))))))))))
 - [[organizations/new-founding]] ((((((((((sourced_from))))))))))
 - [[organizations/turning-point-usa]] (((((((((sourced_from)))))))))

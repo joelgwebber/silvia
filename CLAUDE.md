@@ -100,6 +100,7 @@ The interactive CLI supports both structured commands and natural language:
 - `/create <type> <id>` - Create new entity
 - `/link <from> <type> <to>` - Add relationship
 - `/merge <id1> <id2>` - Merge entity2 into entity1, updating all references
+- `/rename <old-id> <new-id>` - Rename entity and update all references
 - `/ingest <url>` - Fetch and analyze source
 - `/queue` / `/explore queue` - Manage pending sources
 - `/rebuild-refs` - Rebuild all back-references in the graph

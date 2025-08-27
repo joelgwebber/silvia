@@ -604,3 +604,150 @@ func (m *Manager) MergeEntities(ctx context.Context, entity1ID, entity2ID string
 	fmt.Printf("Successfully merged %s into %s\n", entity2ID, entity1ID)
 	return nil
 }
+
+// RenameEntity renames an entity and updates all references throughout the graph
+func (m *Manager) RenameEntity(oldID, newID string) error {
+	// Validate the new ID format
+	if !strings.Contains(newID, "/") {
+		return fmt.Errorf("invalid entity ID format: must be 'type/name' (e.g., 'people/john-doe')")
+	}
+
+	// Check if old entity exists
+	oldEntity, err := m.LoadEntity(oldID)
+	if err != nil {
+		return fmt.Errorf("entity not found: %s", oldID)
+	}
+
+	// Check if new ID already exists
+	if m.EntityExists(newID) {
+		return fmt.Errorf("entity already exists: %s", newID)
+	}
+
+	// Extract the type from both IDs to ensure they match
+	oldParts := strings.SplitN(oldID, "/", 2)
+	newParts := strings.SplitN(newID, "/", 2)
+	if len(oldParts) != 2 || len(newParts) != 2 {
+		return fmt.Errorf("invalid entity ID format")
+	}
+	if oldParts[0] != newParts[0] {
+		return fmt.Errorf("cannot change entity type during rename (from %s to %s)", oldParts[0], newParts[0])
+	}
+
+	fmt.Printf("Renaming %s to %s...\n", oldID, newID)
+
+	// Create the renamed entity
+	renamedEntity := &Entity{
+		Metadata:      oldEntity.Metadata,
+		Title:         oldEntity.Title,
+		Content:       oldEntity.Content,
+		Relationships: oldEntity.Relationships,
+		BackRefs:      oldEntity.BackRefs,
+	}
+
+	// Update the entity ID
+	renamedEntity.Metadata.ID = newID
+
+	// Add the old ID as an alias if not already present
+	hasOldIDAsAlias := false
+	for _, alias := range renamedEntity.Metadata.Aliases {
+		if alias == oldID {
+			hasOldIDAsAlias = true
+			break
+		}
+	}
+	if !hasOldIDAsAlias {
+		renamedEntity.Metadata.Aliases = append(renamedEntity.Metadata.Aliases, oldID)
+	}
+
+	// Update timestamp
+	renamedEntity.Metadata.Updated = time.Now()
+
+	// Find and update all references to the old ID
+	fmt.Println("Updating references throughout the graph...")
+	allEntities, err := m.ListAllEntities()
+	if err != nil {
+		return fmt.Errorf("failed to list entities: %w", err)
+	}
+
+	updatedCount := 0
+	for _, entity := range allEntities {
+		if entity.Metadata.ID == oldID {
+			continue // Skip the entity being renamed
+		}
+
+		modified := false
+
+		// Check and update wiki-links in content
+		if strings.Contains(entity.Content, fmt.Sprintf("[[%s]]", oldID)) {
+			entity.Content = strings.ReplaceAll(entity.Content,
+				fmt.Sprintf("[[%s]]", oldID),
+				fmt.Sprintf("[[%s]]", newID))
+			modified = true
+		}
+
+		// Check and update sources
+		for i, source := range entity.Metadata.Sources {
+			if source == oldID {
+				entity.Metadata.Sources[i] = newID
+				modified = true
+			}
+		}
+
+		// Check and update back-references
+		for i, backRef := range entity.BackRefs {
+			if backRef.Source == oldID {
+				entity.BackRefs[i].Source = newID
+				modified = true
+			}
+		}
+
+		// Check and update relationships
+		for i, rel := range entity.Relationships {
+			if rel.Target == oldID {
+				entity.Relationships[i].Target = newID
+				modified = true
+			}
+		}
+
+		// Save if modified
+		if modified {
+			entity.Metadata.Updated = time.Now()
+			filePath := m.getEntityPath(entity.Metadata.ID)
+			if err := SaveEntityToFile(entity, filePath); err != nil {
+				fmt.Printf("Warning: failed to update references in %s: %v\n", entity.Metadata.ID, err)
+			} else {
+				updatedCount++
+				// Clear from cache
+				m.mu.Lock()
+				delete(m.cache, entity.Metadata.ID)
+				m.mu.Unlock()
+			}
+		}
+	}
+
+	fmt.Printf("Updated %d entities with new references\n", updatedCount)
+
+	// Save the renamed entity with the new ID
+	newPath := m.getEntityPath(newID)
+	if err := SaveEntityToFile(renamedEntity, newPath); err != nil {
+		return fmt.Errorf("failed to save renamed entity: %w", err)
+	}
+
+	// Delete the old entity file
+	oldPath := m.getEntityPath(oldID)
+	if err := os.Remove(oldPath); err != nil {
+		return fmt.Errorf("failed to delete old entity file: %w", err)
+	}
+
+	// Update cache
+	m.mu.Lock()
+	delete(m.cache, oldID)
+	m.cache[newID] = &cacheEntry{
+		entity:   renamedEntity,
+		loadedAt: time.Now(),
+	}
+	m.mu.Unlock()
+
+	fmt.Printf("Successfully renamed %s to %s\n", oldID, newID)
+	return nil
+}

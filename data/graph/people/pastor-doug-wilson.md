@@ -7,7 +7,7 @@ aliases:
     - people/douglas-wilson
     - people/doug-wilson
 created: 2025-08-24T13:48:19.375271-04:00
-updated: 2025-08-26T22:32:44.256551-04:00
+updated: 2025-08-26T23:43:58.985171-04:00
 sources:
     - sources/carlson-wilson-podcast-2024
     - sources/dougwils-mission-babylon-2025
@@ -156,6 +156,150 @@ Conservative pastor, author, and Christian nationalist who advocates for Christi
 
 ### Founded
 - [[organizations/communion-of-reformed-evangelical-churches-crec]]
+
+## Relationships
+
+### Authored
+- [[works/southern-slavery-as-it-was]] - Controversial book on American slavery
+
+### Spoke At
+- [[events/2024-national-conservatism-conference]] - National Conservatism Conference (July 2024)
+- [[events/2024-turning-point-believers-summit]] - Added this link for testing
+
+### Founded
+- [[organizations/communion-of-reformed-evangelical-churches-crec]]
+
+## Relationships
+
+### Authored
+- [[works/southern-slavery-as-it-was]] - Controversial book on American slavery
+
+### Spoke At
+- [[events/2024-national-conservatism-conference]] - National Conservatism Conference (July 2024)
+- [[events/2024-turning-point-believers-summit]] - Added this link for testing
+
+### Founded
+- [[organizations/communion-of-reformed-evangelical-churches-crec]]
+
+## Relationships
+
+### Authored
+- [[works/southern-slavery-as-it-was]] - Controversial book on American slavery
+
+### Spoke At
+- [[events/2024-national-conservatism-conference]] - National Conservatism Conference (July 2024)
+- [[events/2024-turning-point-believers-summit]] - Added this link for testing
+
+### Founded
+- [[organizations/communion-of-reformed-evangelical-churches-crec]]
+
+## Relationships
+
+### Authored
+- [[works/southern-slavery-as-it-was]] - Controversial book on American slavery
+
+### Spoke At
+- [[events/2024-national-conservatism-conference]] - National Conservatism Conference (July 2024)
+- [[events/2024-turning-point-believers-summit]] - Added this link for testing
+
+### Founded
+- [[organizations/communion-of-reformed-evangelical-churches-crec]]
+
+## Relationships
+
+### Authored
+- [[works/southern-slavery-as-it-was]] - Controversial book on American slavery
+
+### Spoke At
+- [[events/2024-national-conservatism-conference]] - National Conservatism Conference (July 2024)
+- [[events/2024-turning-point-believers-summit]] - Added this link for testing
+
+### Founded
+- [[organizations/communion-of-reformed-evangelical-churches-crec]]
+
+## Relationships
+
+### Authored
+- [[works/southern-slavery-as-it-was]] - Controversial book on American slavery
+
+### Spoke At
+- [[events/2024-national-conservatism-conference]] - National Conservatism Conference (July 2024)
+- [[events/2024-turning-point-believers-summit]] - Added this link for testing
+
+### Founded
+- [[organizations/communion-of-reformed-evangelical-churches-crec]]
+
+## Relationships
+
+### Authored
+- [[works/southern-slavery-as-it-was]] - Controversial book on American slavery
+
+### Spoke At
+- [[events/2024-national-conservatism-conference]] - National Conservatism Conference (July 2024)
+- [[events/2024-turning-point-believers-summit]] - Added this link for testing
+
+### Founded
+- [[organizations/communion-of-reformed-evangelical-churches-crec]]
+
+## Relationships
+
+### Authored
+- [[works/southern-slavery-as-it-was]] - Controversial book on American slavery
+
+### Spoke At
+- [[events/2024-national-conservatism-conference]] - National Conservatism Conference (July 2024)
+- [[events/2024-turning-point-believers-summit]] - Added this link for testing
+
+### Founded
+- [[organizations/communion-of-reformed-evangelical-churches-crec]]
+
+## Relationships
+
+### Founded
+- [[organizations/communion-of-reformed-evangelical-churches-crec]]
+
+### Authored
+- [[works/southern-slavery-as-it-was]] - Controversial book on American slavery
+
+### Spoke At
+- [[events/2024-national-conservatism-conference]] - National Conservatism Conference (July 2024)
+- [[events/2024-turning-point-believers-summit]] - Added this link for testing
+
+## Relationships
+
+### Founded
+- [[organizations/communion-of-reformed-evangelical-churches-crec]]
+
+### Authored
+- [[works/southern-slavery-as-it-was]] - Controversial book on American slavery
+
+### Spoke At
+- [[events/2024-national-conservatism-conference]] - National Conservatism Conference (July 2024)
+- [[events/2024-turning-point-believers-summit]] - Added this link for testing
+
+## Relationships
+
+### Founded
+- [[organizations/communion-of-reformed-evangelical-churches-crec]]
+
+### Authored
+- [[works/southern-slavery-as-it-was]] - Controversial book on American slavery
+
+### Spoke At
+- [[events/2024-national-conservatism-conference]] - National Conservatism Conference (July 2024)
+- [[events/2024-turning-point-believers-summit]] - Added this link for testing
+
+## Relationships
+
+### Founded
+- [[organizations/communion-of-reformed-evangelical-churches-crec]]
+
+### Authored
+- [[works/southern-slavery-as-it-was]] - Controversial book on American slavery
+
+### Spoke At
+- [[events/2024-national-conservatism-conference]] - National Conservatism Conference (July 2024)
+- [[events/2024-turning-point-believers-summit]] - Added this link for testing
 
 ## Back-references
 <!-- Auto-maintained by the system -->

@@ -128,6 +128,9 @@ func (c *CLI) buildAutoCompleter() *readline.PrefixCompleter {
 		readline.PcItem("/merge",
 			readline.PcItemDynamic(c.listEntityIDs()),
 		),
+		readline.PcItem("/rename",
+			readline.PcItemDynamic(c.listEntityIDs()),
+		),
 		readline.PcItem("/clear"),
 		readline.PcItem("/exit"),
 		readline.PcItem("/quit"),
@@ -212,6 +215,11 @@ func (c *CLI) processCommand(ctx context.Context, input string) error {
 			return fmt.Errorf("usage: /merge <entity1-id> <entity2-id>")
 		}
 		return c.mergeEntities(ctx, args[0], args[1])
+	case "/rename":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: /rename <old-id> <new-id>")
+		}
+		return c.renameEntity(args[0], args[1])
 	case "/clear":
 		fmt.Print("\033[H\033[2J") // Clear screen
 	case "/rebuild-refs":
@@ -240,6 +248,7 @@ func (c *CLI) showHelp() {
 	fmt.Println("  /create <type> <id>        - Create new entity")
 	fmt.Println("  /link <from> <type> <to>   - Create relationship")
 	fmt.Println("  /merge <id1> <id2>         - Merge entity2 into entity1")
+	fmt.Println("  /rename <old-id> <new-id>  - Rename entity and update references")
 	fmt.Println("  /rebuild-refs              - Rebuild all back-references")
 	fmt.Println("  /clear                     - Clear screen")
 	fmt.Println("  /exit, /quit, /q           - Exit the program")
@@ -543,6 +552,42 @@ func (c *CLI) mergeEntities(ctx context.Context, entity1ID, entity2ID string) er
 	}
 
 	fmt.Printf("\n✅ Successfully merged %s into %s\n", entity2ID, entity1ID)
+	return nil
+}
+
+// renameEntity renames an entity and updates all references
+func (c *CLI) renameEntity(oldID, newID string) error {
+	// Validate old entity exists
+	oldEntity, err := c.graph.LoadEntity(oldID)
+	if err != nil {
+		return fmt.Errorf("entity not found: %s", oldID)
+	}
+
+	// Check if new ID already exists
+	if c.graph.EntityExists(newID) {
+		return fmt.Errorf("entity already exists: %s", newID)
+	}
+
+	// Show what will happen
+	fmt.Printf("\n⚠️  This will rename:\n")
+	fmt.Printf("  %s (%s)\n", oldEntity.Title, oldID)
+	fmt.Printf("  TO\n")
+	fmt.Printf("  %s\n", newID)
+	fmt.Printf("\nAll references will be updated throughout the graph.\n")
+	fmt.Print("Proceed? (y/N):\n")
+
+	confirmation, err := c.readline.Readline()
+	if err != nil || strings.ToLower(strings.TrimSpace(confirmation)) != "y" {
+		fmt.Println("Rename cancelled.")
+		return nil
+	}
+
+	// Perform the rename
+	if err := c.graph.RenameEntity(oldID, newID); err != nil {
+		return fmt.Errorf("rename failed: %w", err)
+	}
+
+	fmt.Printf("\n✅ Successfully renamed %s to %s\n", oldID, newID)
 	return nil
 }
 
