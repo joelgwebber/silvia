@@ -312,23 +312,26 @@ func (m *Manager) updateBackReferences(entity *Entity) error {
 		}
 
 		// Add back-reference with appropriate type
-		targetEntity.AddBackReference(entity.Metadata.ID, link.Type, link.Note)
+		modified := targetEntity.AddBackReference(entity.Metadata.ID, link.Type, link.Note)
 
-		// Save target entity
-		filePath := m.getEntityPath(targetEntity.Metadata.ID)
-		if err := SaveEntityToFile(targetEntity, filePath); err != nil {
-			// Log error but continue with other references
-			fmt.Printf("Warning: failed to save back-reference to %s: %v\n", link.Target, err)
-			continue
-		}
+		// Only save if the entity was actually modified
+		if modified {
+			// Save target entity
+			filePath := m.getEntityPath(targetEntity.Metadata.ID)
+			if err := SaveEntityToFile(targetEntity, filePath); err != nil {
+				// Log error but continue with other references
+				fmt.Printf("Warning: failed to save back-reference to %s: %v\n", link.Target, err)
+				continue
+			}
 
-		// Update cache
-		m.mu.Lock()
-		m.cache[targetEntity.Metadata.ID] = &cacheEntry{
-			entity:   targetEntity,
-			loadedAt: time.Now(),
+			// Update cache
+			m.mu.Lock()
+			m.cache[targetEntity.Metadata.ID] = &cacheEntry{
+				entity:   targetEntity,
+				loadedAt: time.Now(),
+			}
+			m.mu.Unlock()
 		}
-		m.mu.Unlock()
 	}
 
 	// Note: We're not removing old back-references for now since we'd need to track
@@ -397,6 +400,7 @@ func (m *Manager) RebuildAllBackReferences() error {
 	for _, entity := range entities {
 		if len(entity.BackRefs) > 0 {
 			entity.BackRefs = []BackReference{}
+			entity.Metadata.Updated = time.Now()
 			filePath := m.getEntityPath(entity.Metadata.ID)
 			if err := SaveEntityToFile(entity, filePath); err != nil {
 				fmt.Printf("Warning: failed to clear back-refs for %s: %v\n", entity.Metadata.ID, err)
@@ -422,18 +426,21 @@ func (m *Manager) RebuildAllBackReferences() error {
 			}
 
 			// Add the back-reference
-			targetEntity.AddBackReference(entity.Metadata.ID, link.Type, link.Note)
+			modified := targetEntity.AddBackReference(entity.Metadata.ID, link.Type, link.Note)
 
-			// Save the target entity
-			filePath := m.getEntityPath(targetEntity.Metadata.ID)
-			if err := SaveEntityToFile(targetEntity, filePath); err != nil {
-				fmt.Printf("Warning: failed to save back-ref to %s: %v\n", link.Target, err)
+			// Only save if the entity was actually modified
+			if modified {
+				// Save the target entity
+				filePath := m.getEntityPath(targetEntity.Metadata.ID)
+				if err := SaveEntityToFile(targetEntity, filePath); err != nil {
+					fmt.Printf("Warning: failed to save back-ref to %s: %v\n", link.Target, err)
+				}
+
+				// Clear from cache to ensure fresh load next time
+				m.mu.Lock()
+				delete(m.cache, targetEntity.Metadata.ID)
+				m.mu.Unlock()
 			}
-
-			// Clear from cache to ensure fresh load next time
-			m.mu.Lock()
-			delete(m.cache, targetEntity.Metadata.ID)
-			m.mu.Unlock()
 		}
 
 		processed++

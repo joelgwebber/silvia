@@ -53,17 +53,19 @@ func (e *Entity) AddRelationship(relType string, target string, date *time.Time,
 }
 
 // AddBackReference adds a back reference from another entity
-func (e *Entity) AddBackReference(source string, relType string, note string) {
+// Returns true if the entity was modified
+func (e *Entity) AddBackReference(source string, relType string, note string) bool {
 	// Check if this back reference already exists
 	for i, ref := range e.BackRefs {
 		if ref.Source == source {
-			// Update existing reference if type changed
-			if ref.Type != relType {
+			// Update existing reference if type or note changed
+			if ref.Type != relType || ref.Note != note {
 				e.BackRefs[i].Type = relType
 				e.BackRefs[i].Note = note
 				e.Metadata.Updated = time.Now()
+				return true
 			}
-			return
+			return false // Already exists with same type and note
 		}
 	}
 
@@ -75,6 +77,7 @@ func (e *Entity) AddBackReference(source string, relType string, note string) {
 	}
 	e.BackRefs = append(e.BackRefs, backRef)
 	e.Metadata.Updated = time.Now()
+	return true
 }
 
 // AddSource adds a source reference to the entity
