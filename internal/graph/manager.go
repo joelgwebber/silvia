@@ -1,12 +1,15 @@
 package graph
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"silvia/internal/llm"
 )
 
 // cacheEntry stores an entity with metadata about when it was cached
@@ -219,11 +222,11 @@ func (m *Manager) ListAllEntities() ([]*Entity, error) {
 
 // RelatedEntitiesResult contains categorized related entities
 type RelatedEntitiesResult struct {
-	Entity              *Entity                    // The source entity
-	OutgoingByType      map[string][]*Entity      // Outgoing links grouped by type
-	IncomingByType      map[string][]*Entity      // Incoming links grouped by type
-	BrokenLinks         []string                  // Links to non-existent entities
-	All                 []*Entity                 // All valid related entities
+	Entity         *Entity              // The source entity
+	OutgoingByType map[string][]*Entity // Outgoing links grouped by type
+	IncomingByType map[string][]*Entity // Incoming links grouped by type
+	BrokenLinks    []string             // Links to non-existent entities
+	All            []*Entity            // All valid related entities
 }
 
 // GetRelatedEntities returns all entities directly related to the given entity
@@ -238,7 +241,7 @@ func (m *Manager) GetRelatedEntities(entityID string) (*RelatedEntitiesResult, e
 		OutgoingByType: make(map[string][]*Entity),
 		IncomingByType: make(map[string][]*Entity),
 		BrokenLinks:    []string{},
-		All:           []*Entity{},
+		All:            []*Entity{},
 	}
 
 	// Track which entities we've seen
@@ -294,7 +297,7 @@ func (m *Manager) GetRelatedEntitiesSimple(entityID string) ([]*Entity, error) {
 func (m *Manager) updateBackReferences(entity *Entity) error {
 	// Get all outgoing links from this entity
 	outgoingLinks := entity.GetAllOutgoingLinks()
-	
+
 	// Process each outgoing link
 	for _, link := range outgoingLinks {
 		if !m.EntityExists(link.Target) {
@@ -330,7 +333,7 @@ func (m *Manager) updateBackReferences(entity *Entity) error {
 
 	// Note: We're not removing old back-references for now since we'd need to track
 	// what changed. This could be added later with a more sophisticated diff system.
-	
+
 	return nil
 }
 
@@ -383,13 +386,13 @@ func (m *Manager) ClearCache() {
 // RebuildAllBackReferences rebuilds all back-references in the graph
 func (m *Manager) RebuildAllBackReferences() error {
 	fmt.Println("Rebuilding all back-references...")
-	
+
 	// First, clear all existing back-references
 	entities, err := m.ListAllEntities()
 	if err != nil {
 		return fmt.Errorf("failed to list entities: %w", err)
 	}
-	
+
 	// Clear back-references in all entities
 	for _, entity := range entities {
 		if len(entity.BackRefs) > 0 {
@@ -400,48 +403,197 @@ func (m *Manager) RebuildAllBackReferences() error {
 			}
 		}
 	}
-	
+
 	// Now rebuild all back-references
 	processed := 0
 	for _, entity := range entities {
 		// Get all outgoing links
 		outgoingLinks := entity.GetAllOutgoingLinks()
-		
+
 		// Add back-references to target entities
 		for _, link := range outgoingLinks {
 			if !m.EntityExists(link.Target) {
 				continue
 			}
-			
+
 			targetEntity, err := m.LoadEntity(link.Target)
 			if err != nil {
 				continue
 			}
-			
+
 			// Add the back-reference
 			targetEntity.AddBackReference(entity.Metadata.ID, link.Type, link.Note)
-			
+
 			// Save the target entity
 			filePath := m.getEntityPath(targetEntity.Metadata.ID)
 			if err := SaveEntityToFile(targetEntity, filePath); err != nil {
 				fmt.Printf("Warning: failed to save back-ref to %s: %v\n", link.Target, err)
 			}
-			
+
 			// Clear from cache to ensure fresh load next time
 			m.mu.Lock()
 			delete(m.cache, targetEntity.Metadata.ID)
 			m.mu.Unlock()
 		}
-		
+
 		processed++
 		if processed%10 == 0 {
 			fmt.Printf("  Processed %d/%d entities\n", processed, len(entities))
 		}
 	}
-	
+
 	// Clear the entire cache to ensure fresh loads
 	m.ClearCache()
-	
+
 	fmt.Printf("Rebuilt back-references for %d entities\n", len(entities))
+	return nil
+}
+
+// MergeEntities merges entity2 into entity1, updating all references
+func (m *Manager) MergeEntities(ctx context.Context, entity1ID, entity2ID string, llmClient *llm.Client) error {
+	// Load both entities
+	entity1, err := m.LoadEntity(entity1ID)
+	if err != nil {
+		return fmt.Errorf("failed to load entity %s: %w", entity1ID, err)
+	}
+
+	entity2, err := m.LoadEntity(entity2ID)
+	if err != nil {
+		return fmt.Errorf("failed to load entity %s: %w", entity2ID, err)
+	}
+
+	fmt.Printf("Merging %s into %s...\n", entity2ID, entity1ID)
+
+	// Use LLM to merge the content
+	mergedContent, err := llmClient.MergeEntities(ctx, entity1.Content, entity2.Content, "")
+	if err != nil {
+		return fmt.Errorf("failed to merge content: %w", err)
+	}
+
+	// Create the merged entity
+	merged := &Entity{
+		Metadata: entity1.Metadata,
+		Title:    entity1.Title,
+		Content:  mergedContent,
+		BackRefs: entity1.BackRefs, // Will be rebuilt
+	}
+
+	// Merge metadata
+	// Combine aliases
+	aliasSet := make(map[string]bool)
+	for _, alias := range entity1.Metadata.Aliases {
+		aliasSet[alias] = true
+	}
+	for _, alias := range entity2.Metadata.Aliases {
+		aliasSet[alias] = true
+	}
+	// Add the old entity's ID as an alias
+	aliasSet[entity2ID] = true
+
+	merged.Metadata.Aliases = []string{}
+	for alias := range aliasSet {
+		merged.Metadata.Aliases = append(merged.Metadata.Aliases, alias)
+	}
+
+	// Combine sources
+	sourceSet := make(map[string]bool)
+	for _, source := range entity1.Metadata.Sources {
+		sourceSet[source] = true
+	}
+	for _, source := range entity2.Metadata.Sources {
+		sourceSet[source] = true
+	}
+	merged.Metadata.Sources = []string{}
+	for source := range sourceSet {
+		merged.Metadata.Sources = append(merged.Metadata.Sources, source)
+	}
+
+	// Combine tags
+	tagSet := make(map[string]bool)
+	for _, tag := range entity1.Metadata.Tags {
+		tagSet[tag] = true
+	}
+	for _, tag := range entity2.Metadata.Tags {
+		tagSet[tag] = true
+	}
+	merged.Metadata.Tags = []string{}
+	for tag := range tagSet {
+		merged.Metadata.Tags = append(merged.Metadata.Tags, tag)
+	}
+
+	// Update timestamp
+	merged.Metadata.Updated = time.Now()
+
+	// Find all entities that reference entity2 and update them to reference entity1
+	fmt.Println("Updating references...")
+	allEntities, err := m.ListAllEntities()
+	if err != nil {
+		return fmt.Errorf("failed to list entities: %w", err)
+	}
+
+	updatedCount := 0
+	for _, entity := range allEntities {
+		if entity.Metadata.ID == entity1ID || entity.Metadata.ID == entity2ID {
+			continue // Skip the entities being merged
+		}
+
+		modified := false
+
+		// Check and update wiki-links in content
+		if strings.Contains(entity.Content, fmt.Sprintf("[[%s]]", entity2ID)) {
+			entity.Content = strings.ReplaceAll(entity.Content,
+				fmt.Sprintf("[[%s]]", entity2ID),
+				fmt.Sprintf("[[%s]]", entity1ID))
+			modified = true
+		}
+
+		// Check and update sources
+		for i, source := range entity.Metadata.Sources {
+			if source == entity2ID {
+				entity.Metadata.Sources[i] = entity1ID
+				modified = true
+			}
+		}
+
+		// Save if modified
+		if modified {
+			filePath := m.getEntityPath(entity.Metadata.ID)
+			if err := SaveEntityToFile(entity, filePath); err != nil {
+				fmt.Printf("Warning: failed to update references in %s: %v\n", entity.Metadata.ID, err)
+			} else {
+				updatedCount++
+				// Clear from cache
+				m.mu.Lock()
+				delete(m.cache, entity.Metadata.ID)
+				m.mu.Unlock()
+			}
+		}
+	}
+
+	fmt.Printf("Updated %d entities with new references\n", updatedCount)
+
+	// Save the merged entity
+	if err := m.SaveEntity(merged); err != nil {
+		return fmt.Errorf("failed to save merged entity: %w", err)
+	}
+
+	// Delete entity2
+	entity2Path := m.getEntityPath(entity2ID)
+	if err := os.Remove(entity2Path); err != nil {
+		return fmt.Errorf("failed to delete entity %s: %w", entity2ID, err)
+	}
+
+	// Clear entity2 from cache
+	m.mu.Lock()
+	delete(m.cache, entity2ID)
+	m.mu.Unlock()
+
+	// Rebuild back-references to ensure consistency
+	fmt.Println("Rebuilding back-references...")
+	if err := m.RebuildAllBackReferences(); err != nil {
+		return fmt.Errorf("failed to rebuild back-references: %w", err)
+	}
+
+	fmt.Printf("Successfully merged %s into %s\n", entity2ID, entity1ID)
 	return nil
 }

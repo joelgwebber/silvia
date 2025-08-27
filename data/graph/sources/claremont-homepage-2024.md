@@ -2,7 +2,7 @@
 id: sources/claremont-homepage-2024
 type: source
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-25T18:09:12.458633-04:00
+updated: 2025-08-26T22:32:44.247018-04:00
 ---
 
 # Claremont Institute Homepage (2024)
@@ -34,7 +34,7 @@ The Claremont Institute serves as a key intellectual infrastructure for:
 
 - Andrew Fischer (CEO of [[organizations/new-founding]]) is a former Claremont fellow
 - [[people/jd-vance]] received statesmanship award from Claremont
-- Ideological alignment with [[people/doug-wilson]]'s theological-political project
+- Ideological alignment with [[people/pastor-doug-wilson]]'s theological-political project
 
 ## Related Entities
 

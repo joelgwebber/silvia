@@ -2,7 +2,7 @@
 id: sources/collision-imdb-2009
 type: source
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-25T18:09:12.466105-04:00
+updated: 2025-08-26T22:32:44.256007-04:00
 ---
 
 # Collision Documentary (2009) - IMDb Page
@@ -15,7 +15,7 @@ The documentary follows leading atheist and political journalist Christopher Hit
 
 ## Key Figures
 
-- [[people/douglas-wilson]] - Evangelical theologian and pastor
+- [[people/pastor-doug-wilson]] - Evangelical theologian and pastor
 - [[people/christopher-hitchens]] - Leading atheist and political journalist
 - [[people/darren-doane]] - Director
 
@@ -37,6 +37,6 @@ This 2009 documentary predates Wilson's rise to political influence but demonstr
 <!-- Auto-maintained by the system -->
 - [[people/christopher-hitchens]] ((((sourced_from))))
 - [[people/darren-doane]] (((sourced_from)))
-- [[people/douglas-wilson]] ((sourced_from))
+- [[people/pastor-doug-wilson]] ((sourced_from))
 - [[works/collision-christopher-hitchens-vs-douglas-wilson]] (sourced_from)
 

@@ -2,7 +2,7 @@
 id: concepts/gashmu
 type: concept
 created: 2025-08-23T23:57:37.378381-04:00
-updated: 2025-08-25T18:09:12.464453-04:00
+updated: 2025-08-26T22:32:44.254347-04:00
 sources:
     - sources/dougwils-mission-babylon-2025
 ---
@@ -17,7 +17,7 @@ Wilson uses this biblical metaphor to describe his project of rebuilding "the wa
 
 ## Related Works
 
-- Book: "Gashmu Saith It: How to Build Christian Communities that Save the World" by [[people/doug-wilson]]
+- Book: "Gashmu Saith It: How to Build Christian Communities that Save the World" by [[people/pastor-doug-wilson]]
 - Biblical reference: Nehemiah 6:6 - about opposition to rebuilding Jerusalem
 
 ## Back-references

@@ -89,3 +89,36 @@ func (c *Client) ListModels(ctx context.Context) ([]string, error) {
 
 	return modelNames, nil
 }
+
+func (c *Client) MergeEntities(ctx context.Context, entity1Content, entity2Content string, model string) (string, error) {
+	if model == "" {
+		model = "anthropic/claude-3.5-sonnet"
+	}
+
+	systemPrompt := `You are a knowledge graph entity merger. Your task is to merge two entity descriptions into a single, coherent entity that preserves ALL information, references, and relationships from both inputs.
+
+CRITICAL REQUIREMENTS:
+1. Preserve ALL wiki-links in [[entity-id]] format from both entities
+2. Preserve ALL factual information from both entities
+3. Preserve ALL sources listed from both entities
+4. Preserve ALL relationships and connections mentioned
+5. Remove only truly redundant information (exact duplicates)
+6. Organize the merged content coherently with appropriate sections
+7. Do NOT add any new information not present in either source
+8. Do NOT remove any unique information from either source
+9. Maintain a neutral, encyclopedic tone
+
+Output the merged content in markdown format without frontmatter (that will be handled separately).`
+
+	userPrompt := fmt.Sprintf(`Please merge these two entity descriptions:
+
+ENTITY 1:
+%s
+
+ENTITY 2:
+%s
+
+Provide the merged content:`, entity1Content, entity2Content)
+
+	return c.CompleteWithSystem(ctx, systemPrompt, userPrompt, model)
+}

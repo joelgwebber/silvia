@@ -2,7 +2,7 @@
 id: events/2024-national-conservatism-conference
 type: event
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-25T18:09:12.466451-04:00
+updated: 2025-08-26T22:32:44.256367-04:00
 sources:
     - works/politico-wilson-new-right-2025
 ---
@@ -17,7 +17,7 @@ Wilson's prominent speaking slot at this conference represented his full accepta
 
 ## Key Figures
 
-- [[people/doug-wilson]] - Featured speaker with prominent timeslot
+- [[people/pastor-doug-wilson]] - Featured speaker with prominent timeslot
 - [[people/yoram-hazony]] - Conference organizer, conservative writer and activist
 - Saurabh Sharma - Co-organizer (American Moment co-founder)
 
@@ -33,7 +33,7 @@ This appearance came in the same month as Wilson's Turning Point USA appearance,
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[people/douglas-wilson]] ((((mentioned_in))))
+- [[people/pastor-doug-wilson]] ((((mentioned_in))))
 - [[sources/carlson-wilson-podcast-2024]] (((mentioned_in)))
 - [[sources/nytimes-klein-hazony-2025]] ((mentioned_in))
 - [[works/politico-wilson-new-right-2025]] (mentioned_in)

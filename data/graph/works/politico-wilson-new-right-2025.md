@@ -2,7 +2,7 @@
 id: works/politico-wilson-new-right-2025
 type: work
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-25T18:09:12.460789-04:00
+updated: 2025-08-26T22:32:44.250116-04:00
 ---
 
 # Doug Wilson's Moment (Politico, 2025)
@@ -36,7 +36,7 @@ A comprehensive profile of Doug Wilson's rise from fringe Christian nationalist 
 ## Important Figures
 
 ### Wilson's Circle
-- [[people/doug-wilson]] - Central figure
+- [[people/pastor-doug-wilson]] - Central figure
 - [[people/joe-rigney]], [[people/jared-longshore]], [[people/toby-sumpter]] - Associate pastors
 
 ### Political Connections
@@ -98,9 +98,9 @@ A comprehensive profile of Doug Wilson's rise from fringe Christian nationalist 
 - [[organizations/turning-point-usa]] (((((((((sourced_from)))))))))
 - [[people/charlie-kirk]] ((((((((sourced_from))))))))
 - [[people/donald-trump]] (((((((sourced_from)))))))
-- [[people/doug-wilson]] ((((((sourced_from))))))
-- [[people/ian-ward]] (((((sourced_from)))))
-- [[people/jeb-stuart]] ((((sourced_from))))
+- [[people/ian-ward]] ((((((sourced_from))))))
+- [[people/jeb-stuart]] (((((sourced_from)))))
+- [[people/pastor-doug-wilson]] ((((sourced_from))))
 - [[people/pete-hegseth]] (((sourced_from)))
 - [[people/rajah-bose]] ((sourced_from))
 - [[people/tucker-carlson]] (sourced_from)

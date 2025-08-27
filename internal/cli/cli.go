@@ -125,6 +125,9 @@ func (c *CLI) buildAutoCompleter() *readline.PrefixCompleter {
 		readline.PcItem("/link",
 			readline.PcItemDynamic(c.listEntityIDs()),
 		),
+		readline.PcItem("/merge",
+			readline.PcItemDynamic(c.listEntityIDs()),
+		),
 		readline.PcItem("/clear"),
 		readline.PcItem("/exit"),
 		readline.PcItem("/quit"),
@@ -204,6 +207,11 @@ func (c *CLI) processCommand(ctx context.Context, input string) error {
 			return fmt.Errorf("usage: /link <source-id> <rel-type> <target-id>")
 		}
 		return c.createLink(args[0], args[1], args[2])
+	case "/merge":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: /merge <entity1-id> <entity2-id>")
+		}
+		return c.mergeEntities(ctx, args[0], args[1])
 	case "/clear":
 		fmt.Print("\033[H\033[2J") // Clear screen
 	case "/rebuild-refs":
@@ -231,6 +239,7 @@ func (c *CLI) showHelp() {
 	fmt.Println("  /related <entity-id>       - Show related entities (tab for autocomplete)")
 	fmt.Println("  /create <type> <id>        - Create new entity")
 	fmt.Println("  /link <from> <type> <to>   - Create relationship")
+	fmt.Println("  /merge <id1> <id2>         - Merge entity2 into entity1")
 	fmt.Println("  /rebuild-refs              - Rebuild all back-references")
 	fmt.Println("  /clear                     - Clear screen")
 	fmt.Println("  /exit, /quit, /q           - Exit the program")
@@ -351,7 +360,7 @@ func (c *CLI) showRelated(entityID string) error {
 	}
 
 	// Display results
-	fmt.Printf("\n📊 Related entities for: %s %s\n", 
+	fmt.Printf("\n📊 Related entities for: %s %s\n",
 		getEntityIcon(result.Entity.Metadata.Type), result.Entity.Title)
 	fmt.Println(strings.Repeat("─", 60))
 
@@ -362,7 +371,7 @@ func (c *CLI) showRelated(entityID string) error {
 			// Format the relationship type for display
 			displayType := strings.ReplaceAll(relType, "_", " ")
 			displayType = strings.Title(displayType)
-			
+
 			fmt.Printf("  %s:\n", InfoStyle.Render(displayType))
 			for _, e := range entities {
 				fmt.Printf("    %s %s %s\n",
@@ -381,7 +390,7 @@ func (c *CLI) showRelated(entityID string) error {
 			// Format the relationship type for display
 			displayType := strings.ReplaceAll(relType, "_", " ")
 			displayType = strings.Title(displayType)
-			
+
 			fmt.Printf("  %s:\n", InfoStyle.Render(displayType))
 			for _, e := range entities {
 				fmt.Printf("    %s %s %s\n",
@@ -498,6 +507,42 @@ func (c *CLI) createLink(sourceID, relType, targetID string) error {
 	}
 
 	fmt.Printf("✅ Created link: %s → %s → %s\n", sourceID, relType, targetID)
+	return nil
+}
+
+// mergeEntities merges two entities into one
+func (c *CLI) mergeEntities(ctx context.Context, entity1ID, entity2ID string) error {
+	// Validate both entities exist
+	entity1, err := c.graph.LoadEntity(entity1ID)
+	if err != nil {
+		return fmt.Errorf("first entity not found: %w", err)
+	}
+
+	entity2, err := c.graph.LoadEntity(entity2ID)
+	if err != nil {
+		return fmt.Errorf("second entity not found: %w", err)
+	}
+
+	// Confirm with user
+	fmt.Printf("\n⚠️  This will merge:\n")
+	fmt.Printf("  %s (%s)\n", entity2.Title, entity2ID)
+	fmt.Printf("  INTO\n")
+	fmt.Printf("  %s (%s)\n", entity1.Title, entity1ID)
+	fmt.Printf("\nThe second entity will be deleted and all references updated.\n")
+	fmt.Print("Proceed? (y/N):\n")
+
+	confirmation, err := c.readline.Readline()
+	if err != nil || strings.ToLower(strings.TrimSpace(confirmation)) != "y" {
+		fmt.Println("Merge cancelled.")
+		return nil
+	}
+
+	// Perform the merge
+	if err := c.graph.MergeEntities(ctx, entity1ID, entity2ID, c.llm); err != nil {
+		return fmt.Errorf("merge failed: %w", err)
+	}
+
+	fmt.Printf("\n✅ Successfully merged %s into %s\n", entity2ID, entity1ID)
 	return nil
 }
 

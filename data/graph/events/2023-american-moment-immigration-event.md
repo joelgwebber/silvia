@@ -2,7 +2,7 @@
 id: events/2023-american-moment-immigration-event
 type: event
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-25T18:09:12.466227-04:00
+updated: 2025-08-26T22:32:44.25614-04:00
 sources:
     - works/politico-wilson-new-right-2025
 ---
@@ -17,7 +17,7 @@ This event "helped puncture whatever remained of the informal embargo that had k
 
 ## Participants
 
-- [[people/doug-wilson]] - Featured speaker on Christian arguments for immigration restriction
+- [[people/pastor-doug-wilson]] - Featured speaker on Christian arguments for immigration restriction
 - Rep. Chip Roy - Freedom Caucus Republican from Texas
 - Russell Vought - Former and current OMB Director under Trump
 - Nick Solheim - American Moment co-founder who invited Wilson

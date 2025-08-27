@@ -29,7 +29,7 @@ The Republican Party, which has become increasingly receptive to Doug Wilson's C
 
 ## Relationships
 
-- Increasingly influenced by [[people/doug-wilson]] and Christian nationalist ideology
+- Increasingly influenced by [[people/pastor-doug-wilson]] and Christian nationalist ideology
 - Connected through [[organizations/trump-administration]] officials
 - Aligned with [[concepts/maga-movement]] and nationalist-populist agenda
 - Hosts Wilson-aligned figures at [[organizations/american-moment]] events

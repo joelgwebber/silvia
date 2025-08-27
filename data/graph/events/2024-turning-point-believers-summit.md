@@ -2,7 +2,7 @@
 id: events/2024-turning-point-believers-summit
 type: event
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-25T18:09:12.466338-04:00
+updated: 2025-08-26T22:32:44.256257-04:00
 sources:
     - works/politico-wilson-new-right-2025
 ---
@@ -17,7 +17,7 @@ This event represented a key milestone in Wilson's journey from the margins to t
 
 ## Participants
 
-- [[people/doug-wilson]] - Featured speaker
+- [[people/pastor-doug-wilson]] - Featured speaker
 - [[people/charlie-kirk]] - Host, founder of Turning Point USA
 - Conservative Christian leaders and activists
 
@@ -33,7 +33,7 @@ This appearance came after Wilson's successful appearance on Tucker Carlson's po
 ## Back-references
 <!-- Auto-maintained by the system -->
 - [[organizations/turning-point-usa]] ((((mentioned_in))))
-- [[people/douglas-wilson]] (((mentioned_in)))
+- [[people/pastor-doug-wilson]] (((mentioned_in)))
 - [[sources/carlson-wilson-podcast-2024]] ((mentioned_in))
 - [[works/politico-wilson-new-right-2025]] (mentioned_in)
 

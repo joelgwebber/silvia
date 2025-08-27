@@ -2,7 +2,7 @@
 id: sources/carlson-wilson-podcast-2024
 type: source
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-25T18:09:12.460955-04:00
+updated: 2025-08-26T22:32:44.250282-04:00
 ---
 
 # Pastor Doug Wilson on Tucker Carlson Show (April 2024)
@@ -25,7 +25,7 @@ The interview came after Wilson's successful appearance at the [[events/2023-ame
 
 ## Key Figures
 
-- [[people/doug-wilson]] - Featured guest
+- [[people/pastor-doug-wilson]] - Featured guest
 - [[people/tucker-carlson]] - Host, major conservative media figure
 
 ## Topics Discussed
