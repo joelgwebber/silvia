@@ -132,7 +132,7 @@ type OutgoingLink struct {
 func (e *Entity) GetAllOutgoingLinks() []OutgoingLink {
 	links := []OutgoingLink{}
 	seen := make(map[string]bool)
-	
+
 	// Extract wiki-links from content
 	wikiLinks := ExtractWikiLinks(e.Content)
 	for _, target := range wikiLinks {
@@ -145,7 +145,7 @@ func (e *Entity) GetAllOutgoingLinks() []OutgoingLink {
 			seen[key] = true
 		}
 	}
-	
+
 	// Extract entity references from sources (not URLs)
 	for _, source := range e.Metadata.Sources {
 		if strings.Contains(source, "/") && !strings.Contains(source, "://") {
@@ -159,7 +159,6 @@ func (e *Entity) GetAllOutgoingLinks() []OutgoingLink {
 			}
 		}
 	}
-	
+
 	return links
 }
-

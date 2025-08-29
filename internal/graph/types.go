@@ -17,13 +17,13 @@ const (
 
 // Metadata contains the frontmatter metadata for an entity
 type Metadata struct {
-	ID       string    `yaml:"id"`
-	Type     EntityType `yaml:"type"`
-	Aliases  []string  `yaml:"aliases,omitempty"`
-	Created  time.Time `yaml:"created"`
-	Updated  time.Time `yaml:"updated"`
-	Sources  []string  `yaml:"sources,omitempty"`
-	Tags     []string  `yaml:"tags,omitempty"`
+	ID      string     `yaml:"id"`
+	Type    EntityType `yaml:"type"`
+	Aliases []string   `yaml:"aliases,omitempty"`
+	Created time.Time  `yaml:"created"`
+	Updated time.Time  `yaml:"updated"`
+	Sources []string   `yaml:"sources,omitempty"`
+	Tags    []string   `yaml:"tags,omitempty"`
 }
 
 // Entity represents a node in the knowledge graph
@@ -37,10 +37,10 @@ type Entity struct {
 
 // Relationship represents a connection from this entity to another
 type Relationship struct {
-	Type   string   `yaml:"type"`   // e.g., "founded", "authored", "attended"
-	Target string   `yaml:"target"` // ID of the target entity
+	Type   string     `yaml:"type"`   // e.g., "founded", "authored", "attended"
+	Target string     `yaml:"target"` // ID of the target entity
 	Date   *time.Time `yaml:"date,omitempty"`
-	Note   string   `yaml:"note,omitempty"`
+	Note   string     `yaml:"note,omitempty"`
 }
 
 // BackReference represents an incoming reference from another entity

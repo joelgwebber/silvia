@@ -15,8 +15,8 @@ import (
 type ExtractedEntity struct {
 	Name        string
 	Type        graph.EntityType
-	Description string   // Brief one-line description
-	Content     string   // Rich markdown content with sections
+	Description string // Brief one-line description
+	Content     string // Rich markdown content with sections
 	Aliases     []string
 	WikiLinks   []string // Related entities in [[type/id]] format
 }
@@ -42,9 +42,9 @@ type ExtractedLink struct {
 type ExtractionResult struct {
 	Entities      []ExtractedEntity
 	Relationships []ExtractedRelationship
-	LinkedSources []string // Simple list for backward compatibility
+	LinkedSources []string        // Simple list for backward compatibility
 	Links         []ExtractedLink // Enhanced link information
-	SourceSummary *SourceSummary // Structured summary of the source
+	SourceSummary *SourceSummary  // Structured summary of the source
 }
 
 // SourceSummary represents a structured summary of a source
@@ -121,13 +121,13 @@ Output JSON with this structure:
 
 	// Parse response
 	var result struct {
-		Title      string   `json:"title"`
-		Author     string   `json:"author"`
-		Publication string  `json:"publication"`
-		Date       string   `json:"date"`
-		KeyThemes  []string `json:"key_themes"`
-		KeyQuotes  []string `json:"key_quotes"`
-		Analysis   string   `json:"analysis"`
+		Title       string   `json:"title"`
+		Author      string   `json:"author"`
+		Publication string   `json:"publication"`
+		Date        string   `json:"date"`
+		KeyThemes   []string `json:"key_themes"`
+		KeyQuotes   []string `json:"key_quotes"`
+		Analysis    string   `json:"analysis"`
 	}
 
 	if err := json.Unmarshal([]byte(response), &result); err != nil {
@@ -219,7 +219,7 @@ func (e *Extractor) generateEntityID(name string, entityType graph.EntityType) s
 func (e *Extractor) Extract(ctx context.Context, source *Source) (*ExtractionResult, error) {
 	// First, clean and prepare the list of raw links
 	cleanedLinks := e.cleanLinks(source.Links, source.URL)
-	
+
 	systemPrompt := `You are an intelligent content analyzer for a knowledge graph system. Analyze the provided article and extract:
 1. Important entities (people, organizations, concepts, works, events)
 2. Relationships between entities
@@ -400,15 +400,15 @@ Create rich, interconnected entities that capture the full context and significa
 		if link.Category == "navigation" || link.Category == "advertisement" {
 			continue
 		}
-		
+
 		// Skip low relevance links unless we have very few
 		if link.Relevance == "low" && len(result.Links) > 5 {
 			continue
 		}
-		
+
 		// Ensure URL is absolute
 		absoluteURL := e.makeAbsoluteURL(link.URL, source.URL)
-		
+
 		result.Links = append(result.Links, ExtractedLink{
 			URL:         absoluteURL,
 			Title:       link.Title,
@@ -416,7 +416,7 @@ Create rich, interconnected entities that capture the full context and significa
 			Relevance:   link.Relevance,
 			Category:    link.Category,
 		})
-		
+
 		// Also add to simple list for backward compatibility
 		result.LinkedSources = append(result.LinkedSources, absoluteURL)
 	}
@@ -437,32 +437,32 @@ Create rich, interconnected entities that capture the full context and significa
 func (e *Extractor) cleanLinks(links []string, sourceURL string) []string {
 	seen := make(map[string]bool)
 	cleaned := []string{}
-	
+
 	// Could parse source URL for comparison if needed
 	// Currently just removing duplicates and obvious irrelevant links
-	
+
 	for _, link := range links {
 		// Skip if already seen
 		if seen[link] {
 			continue
 		}
 		seen[link] = true
-		
+
 		// Skip fragment-only links
 		if strings.HasPrefix(link, "#") {
 			continue
 		}
-		
+
 		// Skip javascript links
 		if strings.HasPrefix(link, "javascript:") {
 			continue
 		}
-		
+
 		// Skip mailto links
 		if strings.HasPrefix(link, "mailto:") {
 			continue
 		}
-		
+
 		// Skip common navigation patterns
 		lower := strings.ToLower(link)
 		skipPatterns := []string{
@@ -472,7 +472,7 @@ func (e *Extractor) cleanLinks(links []string, sourceURL string) []string {
 			"facebook.com", "twitter.com", "instagram.com",
 			"linkedin.com", "youtube.com", "tiktok.com",
 		}
-		
+
 		skip := false
 		for _, pattern := range skipPatterns {
 			if strings.Contains(lower, pattern) {
@@ -483,12 +483,12 @@ func (e *Extractor) cleanLinks(links []string, sourceURL string) []string {
 		if skip {
 			continue
 		}
-		
+
 		// Make relative URLs absolute
 		absoluteURL := e.makeAbsoluteURL(link, sourceURL)
 		cleaned = append(cleaned, absoluteURL)
 	}
-	
+
 	return cleaned
 }
 
@@ -498,19 +498,19 @@ func (e *Extractor) makeAbsoluteURL(link, baseURL string) string {
 	if strings.HasPrefix(link, "http://") || strings.HasPrefix(link, "https://") {
 		return link
 	}
-	
+
 	// Parse base URL
 	base, err := url.Parse(baseURL)
 	if err != nil {
 		return link
 	}
-	
+
 	// Parse relative URL
 	rel, err := url.Parse(link)
 	if err != nil {
 		return link
 	}
-	
+
 	// Resolve relative to base
 	return base.ResolveReference(rel).String()
 }

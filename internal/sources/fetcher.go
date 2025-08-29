@@ -9,12 +9,12 @@ import (
 
 // Source represents a fetched and processed source
 type Source struct {
-	URL         string
-	Title       string
-	Content     string   // Markdown content
-	RawContent  string   // Original HTML/text
-	Links       []string // Extracted links
-	Metadata    map[string]string
+	URL        string
+	Title      string
+	Content    string   // Markdown content
+	RawContent string   // Original HTML/text
+	Links      []string // Extracted links
+	Metadata   map[string]string
 }
 
 // Fetcher interface for different source types
@@ -47,7 +47,7 @@ func (m *Manager) Fetch(ctx context.Context, sourceURL string) (*Source, error) 
 			return fetcher.Fetch(ctx, sourceURL)
 		}
 	}
-	
+
 	return nil, fmt.Errorf("no fetcher available for URL: %s", sourceURL)
 }
 
@@ -57,11 +57,11 @@ func ExtractDomain(sourceURL string) string {
 	if err != nil {
 		return ""
 	}
-	
+
 	host := u.Host
 	// Remove www. prefix
 	host = strings.TrimPrefix(host, "www.")
-	
+
 	return host
 }
 
@@ -69,7 +69,7 @@ func ExtractDomain(sourceURL string) string {
 func ExtractLinks(content string) []string {
 	var links []string
 	seen := make(map[string]bool)
-	
+
 	// Simple regex-based extraction (can be improved)
 	// Looking for http(s) URLs
 	lines := strings.Split(content, "\n")
@@ -82,7 +82,7 @@ func ExtractLinks(content string) []string {
 				word = strings.TrimSuffix(word, ",")
 				word = strings.TrimSuffix(word, ")")
 				word = strings.TrimSuffix(word, "]")
-				
+
 				if !seen[word] {
 					links = append(links, word)
 					seen[word] = true
@@ -90,6 +90,6 @@ func ExtractLinks(content string) []string {
 			}
 		}
 	}
-	
+
 	return links
 }

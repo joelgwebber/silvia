@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	
+
 	"silvia/internal/bsky"
 )
 
@@ -32,22 +32,22 @@ func (b *BskyFetcher) Fetch(ctx context.Context, sourceURL string) (*Source, err
 	if b.client == nil {
 		return nil, fmt.Errorf("Bluesky client not configured")
 	}
-	
+
 	// Parse URL to extract post ID
 	// Format: https://bsky.app/profile/{handle}/post/{postId}
 	postIDRe := regexp.MustCompile(`/profile/([^/]+)/post/([^/?]+)`)
 	matches := postIDRe.FindStringSubmatch(sourceURL)
-	
+
 	if len(matches) < 3 {
 		return nil, fmt.Errorf("invalid Bluesky URL format")
 	}
-	
+
 	handle := matches[1]
 	postID := matches[2]
-	
+
 	// For now, create a placeholder
 	// TODO: Implement actual Bluesky API calls to fetch post and thread
-	
+
 	markdown := fmt.Sprintf(`# Bluesky Post
 
 **Author**: @%s
@@ -65,12 +65,12 @@ func (b *BskyFetcher) Fetch(ctx context.Context, sourceURL string) (*Source, err
 ---
 *Fetched: %s*
 `, handle, postID, sourceURL, time.Now().Format("2006-01-02 15:04:05"))
-	
+
 	source := &Source{
 		URL:        sourceURL,
 		Title:      fmt.Sprintf("Bluesky post by @%s", handle),
 		Content:    markdown,
-		RawContent: "", // Would contain raw API response
+		RawContent: "",         // Would contain raw API response
 		Links:      []string{}, // Would extract from post content
 		Metadata: map[string]string{
 			"fetched_at": time.Now().Format(time.RFC3339),
@@ -79,6 +79,6 @@ func (b *BskyFetcher) Fetch(ctx context.Context, sourceURL string) (*Source, err
 			"post_id":    postID,
 		},
 	}
-	
+
 	return source, nil
 }

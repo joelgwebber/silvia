@@ -8,70 +8,70 @@ import (
 var (
 	// Status indicators
 	SuccessStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("42")).
-		Bold(true)
+			Foreground(lipgloss.Color("42")).
+			Bold(true)
 
 	ErrorStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("196")).
-		Bold(true)
+			Foreground(lipgloss.Color("196")).
+			Bold(true)
 
 	WarningStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("214"))
+			Foreground(lipgloss.Color("214"))
 
 	InfoStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("86"))
+			Foreground(lipgloss.Color("86"))
 
 	// Entity types
 	PersonStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("213"))
+			Foreground(lipgloss.Color("213"))
 
 	OrgStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("39"))
+			Foreground(lipgloss.Color("39"))
 
 	ConceptStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("228"))
+			Foreground(lipgloss.Color("228"))
 
 	WorkStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("141"))
+			Foreground(lipgloss.Color("141"))
 
 	EventStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("208"))
+			Foreground(lipgloss.Color("208"))
 
 	// UI elements
 	HeaderStyle = lipgloss.NewStyle().
-		Bold(true).
-		Underline(true).
-		Foreground(lipgloss.Color("99"))
+			Bold(true).
+			Underline(true).
+			Foreground(lipgloss.Color("99"))
 
 	SubheaderStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("243"))
+			Bold(true).
+			Foreground(lipgloss.Color("243"))
 
 	DimStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240"))
+			Foreground(lipgloss.Color("240"))
 
 	HighlightStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("212"))
+			Bold(true).
+			Foreground(lipgloss.Color("212"))
 
 	URLStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("39")).
-		Underline(true)
-		
+			Foreground(lipgloss.Color("39")).
+			Underline(true)
+
 	PromptStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("226")).
-		Bold(true)
+			Foreground(lipgloss.Color("226")).
+			Bold(true)
 
 	// Queue priority
 	HighPriorityStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("196")).
-		Bold(true)
+				Foreground(lipgloss.Color("196")).
+				Bold(true)
 
 	MedPriorityStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("214"))
+				Foreground(lipgloss.Color("214"))
 
 	LowPriorityStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("243"))
+				Foreground(lipgloss.Color("243"))
 )
 
 // FormatSuccess formats a success message

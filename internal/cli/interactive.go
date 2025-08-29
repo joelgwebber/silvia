@@ -13,19 +13,19 @@ import (
 // Styles for the interactive UI
 var (
 	titleStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("99")).
-		MarginLeft(2)
+			Bold(true).
+			Foreground(lipgloss.Color("99")).
+			MarginLeft(2)
 
 	selectedStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("212")).
-		Bold(true)
+			Foreground(lipgloss.Color("212")).
+			Bold(true)
 
 	dimStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240"))
+			Foreground(lipgloss.Color("240"))
 
 	helpStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241"))
+			Foreground(lipgloss.Color("241"))
 )
 
 // selectableItem represents an item that can be selected

@@ -53,10 +53,10 @@ func (w *WebFetcher) Fetch(ctx context.Context, sourceURL string) (*Source, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	// Set user agent to avoid blocks
 	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Silvia/1.0; +https://github.com/silvia)")
-	
+
 	resp, err := w.client.Do(req)
 	if err != nil {
 		return nil, &FetchError{
@@ -66,19 +66,19 @@ func (w *WebFetcher) Fetch(ctx context.Context, sourceURL string) (*Source, erro
 		}
 	}
 	defer resp.Body.Close()
-	
+
 	// Check for authentication/paywall indicators
-	if resp.StatusCode == http.StatusUnauthorized || 
-	   resp.StatusCode == http.StatusPaymentRequired ||
-	   resp.StatusCode == http.StatusForbidden {
+	if resp.StatusCode == http.StatusUnauthorized ||
+		resp.StatusCode == http.StatusPaymentRequired ||
+		resp.StatusCode == http.StatusForbidden {
 		return nil, &FetchError{
-			URL:          sourceURL,
-			StatusCode:   resp.StatusCode,
-			Message:      "authentication required",
-			NeedsAuth:    true,
+			URL:        sourceURL,
+			StatusCode: resp.StatusCode,
+			Message:    "authentication required",
+			NeedsAuth:  true,
 		}
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, &FetchError{
 			URL:        sourceURL,
@@ -86,41 +86,41 @@ func (w *WebFetcher) Fetch(ctx context.Context, sourceURL string) (*Source, erro
 			Message:    fmt.Sprintf("HTTP %d: %s", resp.StatusCode, resp.Status),
 		}
 	}
-	
+
 	// Read body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	html := string(body)
-	
+
 	// Check for common paywall/login indicators in content
 	lowerHTML := strings.ToLower(html)
-	if (strings.Contains(lowerHTML, "please log in") || 
-	    strings.Contains(lowerHTML, "please sign in") ||
-	    strings.Contains(lowerHTML, "subscribe to continue") ||
-	    strings.Contains(lowerHTML, "create a free account") ||
-	    strings.Contains(lowerHTML, "you've reached your limit") ||
-	    strings.Contains(lowerHTML, "exclusive content for subscribers") ||
-	    strings.Contains(lowerHTML, "cloudflare") && strings.Contains(lowerHTML, "checking your browser")) &&
-	    len(html) < 50000 { // Paywalls tend to be small
+	if (strings.Contains(lowerHTML, "please log in") ||
+		strings.Contains(lowerHTML, "please sign in") ||
+		strings.Contains(lowerHTML, "subscribe to continue") ||
+		strings.Contains(lowerHTML, "create a free account") ||
+		strings.Contains(lowerHTML, "you've reached your limit") ||
+		strings.Contains(lowerHTML, "exclusive content for subscribers") ||
+		strings.Contains(lowerHTML, "cloudflare") && strings.Contains(lowerHTML, "checking your browser")) &&
+		len(html) < 50000 { // Paywalls tend to be small
 		return nil, &FetchError{
 			URL:       sourceURL,
 			Message:   "detected paywall or authentication page",
 			NeedsAuth: true,
 		}
 	}
-	
+
 	// Extract title
 	title := extractTitle(html)
-	
+
 	// Convert to markdown
 	markdown := htmlToMarkdown(html)
-	
+
 	// Extract links
 	links := extractHTMLLinks(html)
-	
+
 	source := &Source{
 		URL:        sourceURL,
 		Title:      title,
@@ -132,7 +132,7 @@ func (w *WebFetcher) Fetch(ctx context.Context, sourceURL string) (*Source, erro
 			"domain":     ExtractDomain(sourceURL),
 		},
 	}
-	
+
 	return source, nil
 }
 
@@ -143,19 +143,19 @@ func extractTitle(html string) string {
 	if matches := titleRe.FindStringSubmatch(html); len(matches) > 1 {
 		return strings.TrimSpace(matches[1])
 	}
-	
+
 	// Try og:title meta tag
 	ogTitleRe := regexp.MustCompile(`(?i)<meta\s+property="og:title"\s+content="([^"]+)"`)
 	if matches := ogTitleRe.FindStringSubmatch(html); len(matches) > 1 {
 		return strings.TrimSpace(matches[1])
 	}
-	
+
 	// Try h1
 	h1Re := regexp.MustCompile(`(?i)<h1[^>]*>([^<]+)</h1>`)
 	if matches := h1Re.FindStringSubmatch(html); len(matches) > 1 {
 		return strings.TrimSpace(stripHTMLTags(matches[1]))
 	}
-	
+
 	return "Untitled"
 }
 
@@ -164,60 +164,60 @@ func htmlToMarkdown(html string) string {
 	// Remove script and style tags
 	scriptRe := regexp.MustCompile(`(?is)<script[^>]*>.*?</script>`)
 	html = scriptRe.ReplaceAllString(html, "")
-	
+
 	styleRe := regexp.MustCompile(`(?is)<style[^>]*>.*?</style>`)
 	html = styleRe.ReplaceAllString(html, "")
-	
+
 	// Extract body content if present
 	bodyRe := regexp.MustCompile(`(?is)<body[^>]*>(.*)</body>`)
 	if matches := bodyRe.FindStringSubmatch(html); len(matches) > 1 {
 		html = matches[1]
 	}
-	
+
 	// Convert headers
 	html = regexp.MustCompile(`(?i)<h1[^>]*>`).ReplaceAllString(html, "\n# ")
 	html = regexp.MustCompile(`(?i)</h1>`).ReplaceAllString(html, "\n\n")
-	
+
 	html = regexp.MustCompile(`(?i)<h2[^>]*>`).ReplaceAllString(html, "\n## ")
 	html = regexp.MustCompile(`(?i)</h2>`).ReplaceAllString(html, "\n\n")
-	
+
 	html = regexp.MustCompile(`(?i)<h3[^>]*>`).ReplaceAllString(html, "\n### ")
 	html = regexp.MustCompile(`(?i)</h3>`).ReplaceAllString(html, "\n\n")
-	
+
 	// Convert paragraphs
 	html = regexp.MustCompile(`(?i)<p[^>]*>`).ReplaceAllString(html, "\n\n")
 	html = regexp.MustCompile(`(?i)</p>`).ReplaceAllString(html, "\n\n")
-	
+
 	// Convert line breaks
 	html = regexp.MustCompile(`(?i)<br[^>]*>`).ReplaceAllString(html, "\n")
-	
+
 	// Convert links (keep URL)
 	linkRe := regexp.MustCompile(`(?i)<a[^>]+href="([^"]+)"[^>]*>([^<]+)</a>`)
 	html = linkRe.ReplaceAllString(html, "[$2]($1)")
-	
+
 	// Convert bold
 	html = regexp.MustCompile(`(?i)<b[^>]*>`).ReplaceAllString(html, "**")
 	html = regexp.MustCompile(`(?i)</b>`).ReplaceAllString(html, "**")
 	html = regexp.MustCompile(`(?i)<strong[^>]*>`).ReplaceAllString(html, "**")
 	html = regexp.MustCompile(`(?i)</strong>`).ReplaceAllString(html, "**")
-	
+
 	// Convert italic
 	html = regexp.MustCompile(`(?i)<i[^>]*>`).ReplaceAllString(html, "*")
 	html = regexp.MustCompile(`(?i)</i>`).ReplaceAllString(html, "*")
 	html = regexp.MustCompile(`(?i)<em[^>]*>`).ReplaceAllString(html, "*")
 	html = regexp.MustCompile(`(?i)</em>`).ReplaceAllString(html, "*")
-	
+
 	// Convert lists
 	html = regexp.MustCompile(`(?i)<li[^>]*>`).ReplaceAllString(html, "\n- ")
 	html = regexp.MustCompile(`(?i)</li>`).ReplaceAllString(html, "")
-	
+
 	// Strip remaining HTML tags
 	html = stripHTMLTags(html)
-	
+
 	// Clean up excessive whitespace
 	html = regexp.MustCompile(`\n{3,}`).ReplaceAllString(html, "\n\n")
 	html = strings.TrimSpace(html)
-	
+
 	return html
 }
 
@@ -225,7 +225,7 @@ func htmlToMarkdown(html string) string {
 func stripHTMLTags(html string) string {
 	tagRe := regexp.MustCompile(`<[^>]+>`)
 	text := tagRe.ReplaceAllString(html, "")
-	
+
 	// Decode common HTML entities
 	text = strings.ReplaceAll(text, "&nbsp;", " ")
 	text = strings.ReplaceAll(text, "&amp;", "&")
@@ -239,7 +239,7 @@ func stripHTMLTags(html string) string {
 	text = strings.ReplaceAll(text, "&ldquo;", "\"")
 	text = strings.ReplaceAll(text, "&mdash;", "—")
 	text = strings.ReplaceAll(text, "&ndash;", "–")
-	
+
 	return text
 }
 
@@ -247,11 +247,11 @@ func stripHTMLTags(html string) string {
 func extractHTMLLinks(html string) []string {
 	var links []string
 	seen := make(map[string]bool)
-	
+
 	// Extract href attributes
 	hrefRe := regexp.MustCompile(`(?i)href="([^"]+)"`)
 	matches := hrefRe.FindAllStringSubmatch(html, -1)
-	
+
 	for _, match := range matches {
 		if len(match) > 1 {
 			link := match[1]
@@ -263,14 +263,14 @@ func extractHTMLLinks(html string) []string {
 			if strings.HasPrefix(link, "mailto:") {
 				continue
 			}
-			
+
 			if !seen[link] {
 				links = append(links, link)
 				seen[link] = true
 			}
 		}
 	}
-	
+
 	return links
 }
 
@@ -293,17 +293,17 @@ func (w *WebFetcher) FetchFromClipboard(sourceURL string) (*Source, error) {
 	default:
 		return nil, fmt.Errorf("clipboard access not supported on %s", runtime.GOOS)
 	}
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read clipboard: %w", err)
 	}
-	
+
 	content := string(output)
 	if len(content) == 0 {
 		return nil, fmt.Errorf("clipboard is empty")
 	}
-	
+
 	// Try to extract a title from the content
 	title := "Manual capture"
 	lines := strings.Split(content, "\n")
@@ -311,19 +311,19 @@ func (w *WebFetcher) FetchFromClipboard(sourceURL string) (*Source, error) {
 		// Use first line as title if it's reasonable
 		title = strings.TrimSpace(lines[0])
 	}
-	
+
 	// Check if content looks like HTML
-	isHTML := strings.Contains(content, "<html") || strings.Contains(content, "<body") || 
-	          strings.Contains(content, "<article") || strings.Contains(content, "<p>")
-	
+	isHTML := strings.Contains(content, "<html") || strings.Contains(content, "<body") ||
+		strings.Contains(content, "<article") || strings.Contains(content, "<p>")
+
 	var markdown string
 	var links []string
-	
+
 	if isHTML {
 		// Process as HTML
 		markdown = htmlToMarkdown(content)
 		links = extractHTMLLinks(content)
-		
+
 		// Try to extract title from HTML
 		if extractedTitle := extractTitle(content); extractedTitle != "Untitled" {
 			title = extractedTitle
@@ -342,7 +342,7 @@ func (w *WebFetcher) FetchFromClipboard(sourceURL string) (*Source, error) {
 			}
 		}
 	}
-	
+
 	source := &Source{
 		URL:        sourceURL,
 		Title:      title,
@@ -350,19 +350,19 @@ func (w *WebFetcher) FetchFromClipboard(sourceURL string) (*Source, error) {
 		RawContent: content,
 		Links:      links,
 		Metadata: map[string]string{
-			"fetched_at":    time.Now().Format(time.RFC3339),
-			"domain":        ExtractDomain(sourceURL),
+			"fetched_at":     time.Now().Format(time.RFC3339),
+			"domain":         ExtractDomain(sourceURL),
 			"capture_method": "clipboard",
 		},
 	}
-	
+
 	return source, nil
 }
 
 // OpenInBrowser opens a URL in the default browser
 func OpenInBrowser(url string) error {
 	var cmd *exec.Cmd
-	
+
 	switch runtime.GOOS {
 	case "darwin":
 		cmd = exec.Command("open", url)
@@ -373,6 +373,6 @@ func OpenInBrowser(url string) error {
 	default:
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
-	
+
 	return cmd.Start()
 }

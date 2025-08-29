@@ -242,4 +242,3 @@ func ParsePriority(s string) SourcePriority {
 		return PriorityMedium
 	}
 }
-

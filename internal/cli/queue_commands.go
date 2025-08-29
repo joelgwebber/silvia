@@ -319,4 +319,3 @@ func (c *CLI) getSourcePath(url string) string {
 	filename := fmt.Sprintf("%s-%s.md", u.Hostname(), timestamp)
 	return fmt.Sprintf("data/sources/web/%s", filename)
 }
-

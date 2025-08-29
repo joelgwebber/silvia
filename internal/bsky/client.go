@@ -57,4 +57,3 @@ func (c *Client) GetHandle() string {
 func (c *Client) GetDID() string {
 	return c.did
 }
-
