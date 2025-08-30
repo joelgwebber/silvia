@@ -143,6 +143,32 @@ func SaveEntityToFile(entity *Entity, filePath string) error {
 	return nil
 }
 
+// SaveEntityToFileIfChanged saves the entity only if its content has changed
+// Returns true if the file was actually written
+func SaveEntityToFileIfChanged(entity *Entity, filePath string) (bool, error) {
+	// Ensure directory exists
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return false, fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	newContent := FormatEntityMarkdown(entity)
+
+	// Read existing content if file exists
+	existingContent, err := os.ReadFile(filePath)
+	if err == nil && string(existingContent) == newContent {
+		// Content hasn't changed, no need to write
+		return false, nil
+	}
+
+	// Content changed or file doesn't exist, write it
+	if err := os.WriteFile(filePath, []byte(newContent), 0644); err != nil {
+		return false, fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return true, nil
+}
+
 // FormatEntityMarkdown formats an entity as markdown with frontmatter
 func FormatEntityMarkdown(entity *Entity) string {
 	var buf bytes.Buffer

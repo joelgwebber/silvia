@@ -390,69 +390,84 @@ func (m *Manager) ClearCache() {
 func (m *Manager) RebuildAllBackReferences() error {
 	fmt.Println("Rebuilding all back-references...")
 
-	// First, clear all existing back-references
 	entities, err := m.ListAllEntities()
 	if err != nil {
 		return fmt.Errorf("failed to list entities: %w", err)
 	}
 
-	// Clear back-references and ensure all entities have the section
+	// Build a map to track new back-references for each entity
+	newBackRefs := make(map[string][]BackReference)
 	for _, entity := range entities {
-		// Always clear and save to ensure Back-references section exists
-		entity.BackRefs = []BackReference{}
-		entity.Metadata.Updated = time.Now()
-		filePath := m.getEntityPath(entity.Metadata.ID)
-		if err := SaveEntityToFile(entity, filePath); err != nil {
-			fmt.Printf("Warning: failed to update %s: %v\n", entity.Metadata.ID, err)
-		}
+		newBackRefs[entity.Metadata.ID] = []BackReference{}
 	}
 
-	// Now rebuild all back-references
-	processed := 0
+	// Compute all back-references
 	for _, entity := range entities {
-		// Get all outgoing links
 		outgoingLinks := entity.GetAllOutgoingLinks()
-
-		// Add back-references to target entities
 		for _, link := range outgoingLinks {
 			if !m.EntityExists(link.Target) {
 				continue
 			}
-
-			targetEntity, err := m.LoadEntity(link.Target)
-			if err != nil {
-				continue
-			}
-
-			// Add the back-reference
-			modified := targetEntity.AddBackReference(entity.Metadata.ID, link.Type, link.Note)
-
-			// Only save if the entity was actually modified
-			if modified {
-				// Save the target entity
-				filePath := m.getEntityPath(targetEntity.Metadata.ID)
-				if err := SaveEntityToFile(targetEntity, filePath); err != nil {
-					fmt.Printf("Warning: failed to save back-ref to %s: %v\n", link.Target, err)
-				}
-
-				// Clear from cache to ensure fresh load next time
-				m.mu.Lock()
-				delete(m.cache, targetEntity.Metadata.ID)
-				m.mu.Unlock()
-			}
+			// Add this back-reference to the target entity's list
+			newBackRefs[link.Target] = append(newBackRefs[link.Target], BackReference{
+				Source: entity.Metadata.ID,
+				Type:   link.Type,
+				Note:   link.Note,
+			})
 		}
+	}
 
-		processed++
-		if processed%10 == 0 {
-			fmt.Printf("  Processed %d/%d entities\n", processed, len(entities))
+	// Now update only entities whose back-references have changed
+	updatedCount := 0
+	for _, entity := range entities {
+		newRefs := newBackRefs[entity.Metadata.ID]
+		
+		// Check if back-references have changed
+		if !backReferencesEqual(entity.BackRefs, newRefs) {
+			entity.BackRefs = newRefs
+			entity.Metadata.Updated = time.Now()
+			
+			filePath := m.getEntityPath(entity.Metadata.ID)
+			if err := SaveEntityToFile(entity, filePath); err != nil {
+				fmt.Printf("Warning: failed to update %s: %v\n", entity.Metadata.ID, err)
+			} else {
+				updatedCount++
+			}
+			
+			// Clear from cache
+			m.mu.Lock()
+			delete(m.cache, entity.Metadata.ID)
+			m.mu.Unlock()
 		}
 	}
 
 	// Clear the entire cache to ensure fresh loads
 	m.ClearCache()
-
-	fmt.Printf("Rebuilt back-references for %d entities\n", len(entities))
+	fmt.Printf("Updated back-references for %d entities (out of %d total)\n", updatedCount, len(entities))
 	return nil
+}
+
+// backReferencesEqual compares two slices of back-references for equality
+func backReferencesEqual(a, b []BackReference) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	
+	// Create maps for efficient comparison
+	aMap := make(map[string]BackReference)
+	for _, ref := range a {
+		key := ref.Source + "|" + ref.Type + "|" + ref.Note
+		aMap[key] = ref
+	}
+	
+	for _, ref := range b {
+		key := ref.Source + "|" + ref.Type + "|" + ref.Note
+		if _, exists := aMap[key]; !exists {
+			return false
+		}
+	}
+	
+	return true
 }
 
 // MergeEntities merges entity2 into entity1, updating all references
