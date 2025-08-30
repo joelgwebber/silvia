@@ -7,7 +7,7 @@ aliases:
     - people/douglas-wilson
     - people/doug-wilson
 created: 2025-08-24T13:48:19.375271-04:00
-updated: 2025-08-30T14:52:21.59847-04:00
+updated: 2025-08-30T17:29:10.179277-04:00
 sources:
     - sources/carlson-wilson-podcast-2024
     - sources/dougwils-mission-babylon-2025
@@ -20,8 +20,6 @@ tags:
 ---
 
 # Pastor Doug Wilson
-
-Here's the merged entity description:
 
 Conservative pastor, author, and Christian nationalist who advocates for Christian theocracy, influential in both the New Right and National Conservatism movements. Founder of Christ Church in Moscow, Idaho and a controversial figure in reformed theology circles. Has appeared as a guest on The Tucker Carlson Show.
 
@@ -39,12 +37,10 @@ Conservative pastor, author, and Christian nationalist who advocates for Christi
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[concepts/christian-nationalism]] (mentioned_in)
 - [[concepts/gashmu]] (mentioned_in)
 - [[events/2023-american-moment-immigration-event]] (mentioned_in)
 - [[events/2024-national-conservatism-conference]] (mentioned_in)
 - [[events/2024-turning-point-believers-summit]] (mentioned_in)
-- [[organizations/gop]] (mentioned_in)
 - [[sources/carlson-wilson-podcast-2024]] (mentioned_in)
 - [[sources/claremont-homepage-2024]] (mentioned_in)
 - [[sources/collision-imdb-2009]] (mentioned_in)

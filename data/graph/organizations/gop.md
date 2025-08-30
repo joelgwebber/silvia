@@ -4,7 +4,7 @@ type: organization
 aliases:
     - Grand Old Party
 created: 2025-08-23T22:33:35.987384-04:00
-updated: 2025-08-30T14:52:21.597355-04:00
+updated: 2025-08-30T17:29:10.180473-04:00
 sources:
     - sources/politico-wilson-new-right-2025
 ---
@@ -27,10 +27,7 @@ The Republican Party, which has become increasingly receptive to Doug Wilson's C
 - Rep. Chip Roy - Appeared alongside Wilson at American Moment immigration event
 - Russell Vought (OMB Director) - Shared panel with Wilson on immigration restriction
 
-## Relationships
-
-- Increasingly influenced by [[people/pastor-doug-wilson]] and Christian nationalist ideology
-- Connected through [[organizations/trump-administration]] officials
-- Aligned with [[concepts/maga-movement]] and nationalist-populist agenda
-- Hosts Wilson-aligned figures at [[organizations/american-moment]] events
+## Back-references
+<!-- Auto-maintained by the system -->
+- [[sources/politico-wilson-new-right-2025]] (mentioned_in)
 

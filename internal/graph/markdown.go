@@ -78,18 +78,25 @@ func ParseEntityMarkdown(content string) (*Entity, error) {
 
 	// Include ALL content (not just the first section) for all entities
 	// This ensures wiki-links in any section are captured
-	// Exclude only Back-references sections (which are system-maintained)
+	// Exclude Back-references and Relationships sections (which are handled separately)
 	lines := strings.Split(body, "\n")
 	contentLines := []string{}
 	inBackRefs := false
+	inRelationships := false
 
 	for _, line := range lines {
 		if strings.HasPrefix(line, "## Back-references") || strings.HasPrefix(line, "## Referenced by") {
 			inBackRefs = true
+			inRelationships = false
+			continue
+		} else if strings.HasPrefix(line, "## Relationships") {
+			inRelationships = true
+			inBackRefs = false
 			continue
 		} else if strings.HasPrefix(line, "## ") {
-			// New section, reset flag
+			// New section, reset flags
 			inBackRefs = false
+			inRelationships = false
 		}
 
 		// Skip title line (already extracted)
@@ -97,9 +104,9 @@ func ParseEntityMarkdown(content string) (*Entity, error) {
 			continue
 		}
 
-		// Add line if not in back-refs section
-		// (Include everything else, including Relationships sections)
-		if !inBackRefs {
+		// Add line if not in back-refs or relationships section
+		// (Both are handled separately to avoid duplication)
+		if !inBackRefs && !inRelationships {
 			contentLines = append(contentLines, line)
 		}
 	}
@@ -181,10 +188,10 @@ func FormatEntityMarkdown(entity *Entity) string {
 		}
 	}
 
-	// Write back-references
+	// Write back-references (always include the section, even if empty)
+	buf.WriteString("## Back-references\n")
+	buf.WriteString("<!-- Auto-maintained by the system -->\n")
 	if len(entity.BackRefs) > 0 {
-		buf.WriteString("## Back-references\n")
-		buf.WriteString("<!-- Auto-maintained by the system -->\n")
 		for _, backRef := range entity.BackRefs {
 			buf.WriteString(fmt.Sprintf("- [[%s]]", backRef.Source))
 			if backRef.Type != "" {
@@ -195,8 +202,8 @@ func FormatEntityMarkdown(entity *Entity) string {
 			}
 			buf.WriteString("\n")
 		}
-		buf.WriteString("\n")
 	}
+	buf.WriteString("\n")
 
 	return buf.String()
 }

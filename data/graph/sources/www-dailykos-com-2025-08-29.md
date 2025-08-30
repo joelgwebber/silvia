@@ -2,7 +2,7 @@
 id: sources/www-dailykos-com-2025-08-29
 type: work
 created: 2025-08-29T22:09:45.599158-04:00
-updated: 2025-08-30T13:46:43.532478-04:00
+updated: 2025-08-30T17:29:10.170801-04:00
 sources:
     - https://www.dailykos.com/stories/2025/6/5/2325968/-Elon-Musk-is-gone-but-Big-Balls-remains-and-we-re-all-paying-for-him
 ---
@@ -37,9 +37,17 @@ The article discusses the lingering influence of Elon Musk through his associate
 
 ## Related Entities
 
+### Organizations
+- [[organizations/airbnb]]
+- [[organizations/department-of-government-efficiency]]
+- [[organizations/national-design-studio]]
+- [[organizations/office-of-personnel-management]]
+
 ### People
-- [[people/elon-musk]]
+- [[people/donald-trump]]
 - [[people/edward-coristine]]
+- [[people/elon-musk]]
+- [[people/joe-gebbia]]
 
 ## Back-references
 <!-- Auto-maintained by the system -->

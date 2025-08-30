@@ -2,7 +2,7 @@
 id: events/2024-national-conservatism-conference
 type: event
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-30T14:52:21.596945-04:00
+updated: 2025-08-30T17:29:10.179149-04:00
 sources:
     - sources/politico-wilson-new-right-2025
 ---
@@ -33,7 +33,6 @@ This appearance came in the same month as Wilson's Turning Point USA appearance,
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[people/pastor-doug-wilson]] (mentioned_in)
 - [[sources/carlson-wilson-podcast-2024]] (mentioned_in)
 - [[sources/nytimes-klein-hazony-2025]] (mentioned_in)
 - [[sources/politico-wilson-new-right-2025]] (mentioned_in)

@@ -396,15 +396,14 @@ func (m *Manager) RebuildAllBackReferences() error {
 		return fmt.Errorf("failed to list entities: %w", err)
 	}
 
-	// Clear back-references in all entities
+	// Clear back-references and ensure all entities have the section
 	for _, entity := range entities {
-		if len(entity.BackRefs) > 0 {
-			entity.BackRefs = []BackReference{}
-			entity.Metadata.Updated = time.Now()
-			filePath := m.getEntityPath(entity.Metadata.ID)
-			if err := SaveEntityToFile(entity, filePath); err != nil {
-				fmt.Printf("Warning: failed to clear back-refs for %s: %v\n", entity.Metadata.ID, err)
-			}
+		// Always clear and save to ensure Back-references section exists
+		entity.BackRefs = []BackReference{}
+		entity.Metadata.Updated = time.Now()
+		filePath := m.getEntityPath(entity.Metadata.ID)
+		if err := SaveEntityToFile(entity, filePath); err != nil {
+			fmt.Printf("Warning: failed to update %s: %v\n", entity.Metadata.ID, err)
 		}
 	}
 

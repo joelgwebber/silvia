@@ -4,7 +4,7 @@ type: sources
 aliases:
     - works/politico-wilson-new-right-2025
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-30T14:52:21.584165-04:00
+updated: 2025-08-30T17:29:10.175082-04:00
 ---
 
 # Doug Wilson's Moment (Politico, 2025)
@@ -84,6 +84,34 @@ A comprehensive profile of Doug Wilson's rise from fringe Christian nationalist 
 - Tucker Carlson podcast episode
 - New Founding podcast episodes
 - Talking Points Memo coverage of Hegseth-Wilson meeting
+
+## Entities Mentioned
+
+### Concepts
+- [[concepts/moscow-idaho]]
+
+### Events
+- [[events/2023-american-moment-immigration-event]]
+- [[events/2024-national-conservatism-conference]]
+- [[events/2024-turning-point-believers-summit]]
+
+### Organizations
+- [[organizations/american-moment]]
+- [[organizations/christ-church]]
+- [[organizations/communion-of-reformed-evangelical-churches-crec]]
+- [[organizations/gop]]
+- [[organizations/new-founding]]
+- [[organizations/turning-point-usa]]
+
+### People
+- [[people/charlie-kirk]]
+- [[people/donald-trump]]
+- [[people/ian-ward]]
+- [[people/jeb-stuart]]
+- [[people/pastor-doug-wilson]]
+- [[people/pete-hegseth]]
+- [[people/rajah-bose]]
+- [[people/tucker-carlson]]
 
 ## Back-references
 <!-- Auto-maintained by the system -->

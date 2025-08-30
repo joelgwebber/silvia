@@ -2,7 +2,7 @@
 id: people/joe-gebbia
 type: person
 created: 2025-08-29T15:14:41.427965-04:00
-updated: 2025-08-30T13:46:43.520851-04:00
+updated: 2025-08-30T17:29:10.181403-04:00
 sources:
     - sources/www-dailykos-com-2025-08-29
 ---
@@ -17,10 +17,11 @@ Joe Gebbia is one of the co-founders of Airbnb. Recently, he was appointed as th
 - Appointed as the chief design officer in the government
 
 ## Relationships
-- [[organization/Airbnb]]
-
-## Relationships
 
 ### 
 - [[organization/Airbnb]]
+
+## Back-references
+<!-- Auto-maintained by the system -->
+- [[sources/www-dailykos-com-2025-08-29]] (mentioned_in)
 
