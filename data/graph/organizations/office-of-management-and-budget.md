@@ -4,7 +4,7 @@ type: organization
 aliases:
     - OMB
 created: 2025-08-25T14:51:35.753598-04:00
-updated: 2025-08-25T18:09:12.460125-04:00
+updated: 2025-08-30T13:46:43.533988-04:00
 sources:
     - '[[sources/www-newsweek-com-2025-08-25]]'
 ---

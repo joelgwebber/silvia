@@ -2,7 +2,7 @@
 id: works/collision-christopher-hitchens-vs-douglas-wilson
 type: work
 created: 2025-08-23T23:41:49.457233-04:00
-updated: 2025-08-25T18:09:12.463518-04:00
+updated: 2025-08-30T13:46:43.539798-04:00
 sources:
     - sources/collision-imdb-2009
 ---

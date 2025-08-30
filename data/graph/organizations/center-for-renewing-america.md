@@ -4,7 +4,7 @@ type: organization
 aliases:
     - Center for Renewing America
 created: 2025-08-25T14:51:35.75285-04:00
-updated: 2025-08-25T18:09:12.460022-04:00
+updated: 2025-08-30T13:46:43.533909-04:00
 sources:
     - '[[sources/www-newsweek-com-2025-08-25]]'
 ---

@@ -12,8 +12,31 @@ import (
 	"silvia/internal/sources"
 )
 
-// ingestSource processes a source
+// ingestSource processes a source without force
 func (c *CLI) ingestSource(ctx context.Context, url string) error {
+	return c.ingestSourceWithForce(ctx, url, false)
+}
+
+// ingestSourceWithForce processes a source with optional force flag
+func (c *CLI) ingestSourceWithForce(ctx context.Context, url string, force bool) error {
+	// Check if already processed (unless force is true)
+	if !force && c.isSourceProcessed(url) {
+		fmt.Println(WarningStyle.Render("⚠️  Source already processed: ") + URLStyle.Render(url))
+		fmt.Println(DimStyle.Render("Use /ingest <url> --force to re-process"))
+		// Remove from queue if present
+		c.queue.Remove(url)
+		c.queue.SaveToFile()
+		return nil
+	}
+	
+	if force && c.isSourceProcessed(url) {
+		fmt.Println(InfoStyle.Render("🔄 Force update: Re-processing ") + URLStyle.Render(url))
+		// Remove from tracker to allow re-processing
+		if c.tracker != nil {
+			c.tracker.RemoveProcessed(url)
+		}
+	}
+	
 	fmt.Println(InfoStyle.Render("📥 Ingesting source: ") + URLStyle.Render(url))
 
 	// Fetch the source

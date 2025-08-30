@@ -322,17 +322,21 @@ func parseBackReferences(content string) []BackReference {
 				// Extract the text after the link
 				afterLink := strings.TrimSpace(wikiLinkRegex.ReplaceAllString(line, ""))
 				afterLink = strings.TrimPrefix(afterLink, "-")
-				parts := strings.SplitN(afterLink, "-", 2)
-
+				
 				backRef := BackReference{
 					Source: matches[1],
 				}
 
-				if len(parts) > 0 {
-					backRef.Type = strings.TrimSpace(parts[0])
+				// Look for type in parentheses
+				if typeMatch := regexp.MustCompile(`\(([^)]+)\)`).FindStringSubmatch(afterLink); len(typeMatch) > 1 {
+					backRef.Type = typeMatch[1]
+					// Remove the type from afterLink to get the note
+					afterLink = strings.TrimSpace(regexp.MustCompile(`\([^)]+\)`).ReplaceAllString(afterLink, ""))
 				}
-				if len(parts) > 1 {
-					backRef.Note = strings.TrimSpace(parts[1])
+				
+				// Everything left after removing type is the note
+				if afterLink != "" && afterLink != "-" {
+					backRef.Note = strings.TrimSpace(strings.TrimPrefix(afterLink, "-"))
 				}
 
 				backRefs = append(backRefs, backRef)

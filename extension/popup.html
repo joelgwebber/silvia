@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Silvia Capture</title>
+  <style>
+    body {
+      width: 350px;
+      min-height: 400px;
+      padding: 0;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .container {
+      padding: 20px;
+    }
+    
+    .header {
+      color: white;
+      margin-bottom: 20px;
+    }
+    
+    .header h1 {
+      margin: 0 0 5px 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    
+    .status {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 10px 15px;
+      margin-bottom: 20px;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ff4444;
+      animation: pulse 2s infinite;
+    }
+    
+    .status.connected .status-indicator {
+      background: #44ff44;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .page-info {
+      margin-bottom: 15px;
+    }
+    
+    .page-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+      margin: 0 0 5px 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .page-url {
+      font-size: 12px;
+      color: #666;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .capture-options {
+      margin: 15px 0;
+    }
+    
+    .option {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .option input[type="checkbox"] {
+      margin-right: 10px;
+    }
+    
+    .option label {
+      font-size: 14px;
+      color: #555;
+      cursor: pointer;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 10px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+    
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+    
+    .message {
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .message.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    
+    .stats {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .stat {
+      flex: 1;
+      text-align: center;
+      padding: 5px;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+    
+    .stat-value {
+      font-weight: 600;
+      color: #333;
+      display: block;
+    }
+    
+    .settings {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #e0e0e0;
+    }
+    
+    .settings-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 10px;
+    }
+    
+    .input-group {
+      margin-bottom: 10px;
+    }
+    
+    .input-group label {
+      display: block;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    
+    .input-group input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Silvia Capture</h1>
+    </div>
+    
+    <div class="status" id="status">
+      <div class="status-indicator"></div>
+      <span id="status-text">Checking connection...</span>
+    </div>
+    
+    <div class="card">
+      <div class="page-info">
+        <h2 class="page-title" id="page-title">Loading...</h2>
+        <div class="page-url" id="page-url"></div>
+      </div>
+      
+      <div class="capture-options">
+        <div class="option">
+          <input type="checkbox" id="capture-links" checked>
+          <label for="capture-links">Capture links with context</label>
+        </div>
+        <div class="option">
+          <input type="checkbox" id="capture-selection">
+          <label for="capture-selection">Capture selection only</label>
+        </div>
+        <div class="option">
+          <input type="checkbox" id="force-update">
+          <label for="force-update">Force update (re-process if exists)</label>
+        </div>
+      </div>
+      
+      <button class="btn btn-primary" id="capture-btn" disabled>
+        Capture to Silvia
+      </button>
+      
+      <div id="message"></div>
+      
+      <div class="stats" id="stats" style="display: none;">
+        <div class="stat">
+          <span class="stat-value" id="stat-entities">0</span>
+          Entities
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="stat-links">0</span>
+          Links
+        </div>
+      </div>
+    </div>
+    
+    <div class="card settings">
+      <div class="settings-title">Connection Settings</div>
+      <div class="input-group">
+        <label for="server-url">Server URL</label>
+        <input type="text" id="server-url" value="http://localhost:8765">
+      </div>
+      <div class="input-group">
+        <label for="auth-token">Auth Token (optional)</label>
+        <input type="password" id="auth-token" placeholder="Leave empty if not required">
+      </div>
+      <button class="btn btn-secondary" id="save-settings">Save Settings</button>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

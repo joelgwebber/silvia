@@ -2,7 +2,7 @@
 id: sources/carlson-wilson-podcast-2024
 type: source
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-26T22:32:44.250282-04:00
+updated: 2025-08-30T13:46:43.5349-04:00
 ---
 
 # Pastor Doug Wilson on Tucker Carlson Show (April 2024)
@@ -50,7 +50,7 @@ This podcast appearance was part of the "flurry of activity" in 2024 that marked
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[people/john-daniel-davidson]] (((sourced_from)))
-- [[people/pastor-doug-wilson]] ((sourced_from))
+- [[people/john-daniel-davidson]] (sourced_from)
+- [[people/pastor-doug-wilson]] (sourced_from)
 - [[people/tucker-carlson]] (sourced_from)
 

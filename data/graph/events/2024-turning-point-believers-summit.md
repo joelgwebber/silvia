@@ -2,9 +2,9 @@
 id: events/2024-turning-point-believers-summit
 type: event
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-26T22:32:44.256257-04:00
+updated: 2025-08-30T14:52:21.596996-04:00
 sources:
-    - works/politico-wilson-new-right-2025
+    - sources/politico-wilson-new-right-2025
 ---
 
 # Turning Point USA Believers Summit (July 2024)
@@ -32,8 +32,8 @@ This appearance came after Wilson's successful appearance on Tucker Carlson's po
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[organizations/turning-point-usa]] ((((mentioned_in))))
-- [[people/pastor-doug-wilson]] (((mentioned_in)))
-- [[sources/carlson-wilson-podcast-2024]] ((mentioned_in))
-- [[works/politico-wilson-new-right-2025]] (mentioned_in)
+- [[organizations/turning-point-usa]] (mentioned_in)
+- [[people/pastor-doug-wilson]] (mentioned_in)
+- [[sources/carlson-wilson-podcast-2024]] (mentioned_in)
+- [[sources/politico-wilson-new-right-2025]] (mentioned_in)
 

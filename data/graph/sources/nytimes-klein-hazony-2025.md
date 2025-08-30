@@ -2,7 +2,7 @@
 id: sources/nytimes-klein-hazony-2025
 type: source
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-25T18:09:12.467892-04:00
+updated: 2025-08-30T13:46:43.546001-04:00
 ---
 
 # Behind Trump and Vance Is This Man's Movement (Ezra Klein Show, 2025)
@@ -44,9 +44,9 @@ This interview reveals the intellectual architecture behind the Trump-Vance poli
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[organizations/claremont-institute]] (((((sourced_from)))))
-- [[people/ezra-klein]] ((((sourced_from))))
-- [[people/jd-vance]] (((sourced_from)))
-- [[people/yoram-hazony]] ((sourced_from))
+- [[organizations/claremont-institute]] (sourced_from)
+- [[people/ezra-klein]] (sourced_from)
+- [[people/jd-vance]] (sourced_from)
+- [[people/yoram-hazony]] (sourced_from)
 - [[works/the-virtue-of-nationalism]] (sourced_from)
 

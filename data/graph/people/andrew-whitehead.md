@@ -2,7 +2,7 @@
 id: people/andrew-whitehead
 type: person
 created: 2025-08-25T14:59:54.990847-04:00
-updated: 2025-08-25T18:09:12.465675-04:00
+updated: 2025-08-30T13:46:43.543329-04:00
 sources:
     - sources/www-newsweek-com-2025-08-25
 ---

@@ -2,7 +2,7 @@
 id: organizations/claremont-institute
 type: organization
 created: 2025-08-24T21:56:26.914191-04:00
-updated: 2025-08-25T18:09:12.464879-04:00
+updated: 2025-08-30T13:46:43.542199-04:00
 sources:
     - sources/nytimes-klein-hazony-2025
     - sources/claremont-homepage-2024
@@ -26,6 +26,6 @@ A Trump-aligned conservative think tank that serves as an intellectual hub for t
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[sources/claremont-homepage-2024]] ((mentioned_in))
+- [[sources/claremont-homepage-2024]] (mentioned_in)
 - [[sources/nytimes-klein-hazony-2025]] (mentioned_in)
 

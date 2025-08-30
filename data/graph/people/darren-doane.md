@@ -2,7 +2,7 @@
 id: people/darren-doane
 type: person
 created: 2025-08-23T23:41:49.462127-04:00
-updated: 2025-08-25T18:09:12.463403-04:00
+updated: 2025-08-30T13:46:43.539706-04:00
 sources:
     - sources/collision-imdb-2009
 ---

@@ -2,7 +2,7 @@
 id: sources/collision-imdb-2009
 type: source
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-26T22:32:44.256007-04:00
+updated: 2025-08-30T13:46:43.544194-04:00
 ---
 
 # Collision Documentary (2009) - IMDb Page
@@ -35,8 +35,8 @@ This 2009 documentary predates Wilson's rise to political influence but demonstr
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[people/christopher-hitchens]] ((((sourced_from))))
-- [[people/darren-doane]] (((sourced_from)))
-- [[people/pastor-doug-wilson]] ((sourced_from))
+- [[people/christopher-hitchens]] (sourced_from)
+- [[people/darren-doane]] (sourced_from)
+- [[people/pastor-doug-wilson]] (sourced_from)
 - [[works/collision-christopher-hitchens-vs-douglas-wilson]] (sourced_from)
 

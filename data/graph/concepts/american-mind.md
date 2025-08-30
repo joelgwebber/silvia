@@ -2,7 +2,7 @@
 id: concepts/american-mind
 type: concept
 created: 2025-08-24T21:57:12.528381-04:00
-updated: 2025-08-25T18:09:12.46209-04:00
+updated: 2025-08-30T13:46:43.536239-04:00
 sources:
     - sources/claremont-homepage-2024
 ---

@@ -4,9 +4,9 @@ type: organization
 aliases:
     - Grand Old Party
 created: 2025-08-23T22:33:35.987384-04:00
-updated: 2025-08-23T22:33:35.987385-04:00
+updated: 2025-08-30T14:52:21.597355-04:00
 sources:
-    - works/politico-wilson-new-right-2025
+    - sources/politico-wilson-new-right-2025
 ---
 
 # GOP

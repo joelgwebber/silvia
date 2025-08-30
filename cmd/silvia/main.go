@@ -5,13 +5,16 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"silvia/internal/bsky"
 	"silvia/internal/cli"
 	"silvia/internal/graph"
 	"silvia/internal/llm"
+	"silvia/internal/server"
 )
 
 func main() {
@@ -21,6 +24,10 @@ func main() {
 		bskyPassword  string
 		openrouterKey string
 		dataDir       string
+		serverPort    int
+		serverToken   string
+		noServer      bool
+		debug         bool
 	)
 
 	flag.BoolVar(&help, "help", false, "Show help message")
@@ -29,6 +36,10 @@ func main() {
 	flag.StringVar(&bskyPassword, "bsky-password", os.Getenv("BSKY_PASSWORD"), "Bluesky app password (can also use BSKY_PASSWORD env var)")
 	flag.StringVar(&openrouterKey, "openrouter-key", os.Getenv("OPENROUTER_API_KEY"), "OpenRouter API key (can also use OPENROUTER_API_KEY env var)")
 	flag.StringVar(&dataDir, "data", "./data", "Data directory for storing the knowledge graph")
+	flag.IntVar(&serverPort, "port", 8765, "Port for browser extension API server")
+	flag.StringVar(&serverToken, "token", os.Getenv("SILVIA_TOKEN"), "Optional auth token for extension API (can also use SILVIA_TOKEN env var)")
+	flag.BoolVar(&noServer, "no-server", false, "Disable the extension API server")
+	flag.BoolVar(&debug, "debug", false, "Enable debug output for troubleshooting")
 	flag.Parse()
 
 	if help {
@@ -44,6 +55,7 @@ func main() {
 		fmt.Println("  BSKY_HANDLE          Bluesky handle")
 		fmt.Println("  BSKY_PASSWORD        Bluesky app password")
 		fmt.Println("  OPENROUTER_API_KEY   OpenRouter API key")
+		fmt.Println("  SILVIA_TOKEN         Optional auth token for extension API")
 		os.Exit(0)
 	}
 
@@ -80,11 +92,53 @@ func main() {
 
 	// Initialize CLI
 	cliInterface := cli.NewCLI(graphManager, llmClient)
+	
+	// Enable debug mode if requested
+	if debug {
+		log.Println("Debug mode enabled")
+		cliInterface.SetDebug(true)
+	}
 
 	// Load queue from disk
 	queuePath := filepath.Join(dataDir, ".silvia", "queue.json")
 	if err := cliInterface.LoadQueue(queuePath); err != nil {
 		log.Printf("Warning: Failed to load queue: %v", err)
+	}
+
+	// Start extension API server if enabled
+	if !noServer {
+		// Create ingestion handler that wraps the CLI method
+		ingestHandler := func(ctx context.Context, url string, html string, title string, links []server.LinkInfo, metadata map[string]string, force bool) error {
+			// Convert server.LinkInfo to cli.ExtensionLinkInfo
+			cliLinks := make([]cli.ExtensionLinkInfo, len(links))
+			for i, link := range links {
+				cliLinks[i] = cli.ExtensionLinkInfo{
+					URL:     link.URL,
+					Text:    link.Text,
+					Context: link.Context,
+				}
+			}
+			return cliInterface.IngestFromExtension(ctx, url, html, title, cliLinks, metadata, force)
+		}
+		
+		apiServer := server.NewServer(serverPort, serverToken, ingestHandler)
+		go func() {
+			if err := apiServer.Start(); err != nil && err != http.ErrServerClosed {
+				log.Printf("Extension API server error: %v", err)
+			}
+		}()
+		log.Printf("Extension API server started on port %d", serverPort)
+		
+		// Ensure server stops on exit
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := apiServer.Stop(shutdownCtx); err != nil {
+				log.Printf("Error stopping server: %v", err)
+			}
+		}()
+	} else {
+		log.Println("Extension API server disabled")
 	}
 
 	// Run interactive CLI

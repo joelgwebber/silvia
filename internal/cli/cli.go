@@ -24,24 +24,36 @@ type CLI struct {
 	readline  *readline.Instance
 	sources   *sources.Manager
 	extractor *sources.Extractor
+	tracker   *SourceTracker
 	dataDir   string
+	debug     bool
 }
 
 // NewCLI creates a new CLI instance
 func NewCLI(graphManager *graph.Manager, llmClient *llm.Client) *CLI {
+	dataDir := "data" // Default data directory
 	return &CLI{
 		graph:     graphManager,
 		llm:       llmClient,
 		queue:     NewSourceQueue(),
 		sources:   sources.NewManager(),
 		extractor: sources.NewExtractor(llmClient),
-		dataDir:   "data", // Default data directory
+		tracker:   NewSourceTracker(dataDir),
+		dataDir:   dataDir,
 	}
 }
 
 // LoadQueue loads the queue from a file
 func (c *CLI) LoadQueue(filePath string) error {
 	return c.queue.LoadFromFile(filePath)
+}
+
+// SetDebug enables or disables debug mode
+func (c *CLI) SetDebug(debug bool) {
+	c.debug = debug
+	if c.extractor != nil {
+		c.extractor.SetDebug(debug)
+	}
 }
 
 // Run starts the interactive CLI session
@@ -131,6 +143,9 @@ func (c *CLI) buildAutoCompleter() *readline.PrefixCompleter {
 		readline.PcItem("/rename",
 			readline.PcItemDynamic(c.listEntityIDs()),
 		),
+		readline.PcItem("/move",
+			readline.PcItemDynamic(c.listEntityIDs()),
+		),
 		readline.PcItem("/clear"),
 		readline.PcItem("/exit"),
 		readline.PcItem("/quit"),
@@ -180,9 +195,14 @@ func (c *CLI) processCommand(ctx context.Context, input string) error {
 		c.showHelp()
 	case "/ingest":
 		if len(args) < 1 {
-			return fmt.Errorf("usage: /ingest <url>")
+			return fmt.Errorf("usage: /ingest <url> [--force]")
 		}
-		return c.ingestSource(ctx, args[0])
+		force := false
+		url := args[0]
+		if len(args) > 1 && args[1] == "--force" {
+			force = true
+		}
+		return c.ingestSourceWithForce(ctx, url, force)
 	case "/show", "/view":
 		if len(args) < 1 {
 			return fmt.Errorf("usage: /show <entity-id>")
@@ -220,6 +240,11 @@ func (c *CLI) processCommand(ctx context.Context, input string) error {
 			return fmt.Errorf("usage: /rename <old-id> <new-id>")
 		}
 		return c.renameEntity(args[0], args[1])
+	case "/move":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: /move <old-id> <new-id>")
+		}
+		return c.moveEntity(args[0], args[1])
 	case "/clear":
 		fmt.Print("\033[H\033[2J") // Clear screen
 	case "/rebuild-refs":
@@ -240,7 +265,7 @@ func (c *CLI) processCommand(ctx context.Context, input string) error {
 func (c *CLI) showHelp() {
 	fmt.Println("\nAvailable Commands:")
 	fmt.Println("  /help                      - Show this help message")
-	fmt.Println("  /ingest <url>              - Ingest a new source")
+	fmt.Println("  /ingest <url> [--force]    - Ingest a source (--force to re-process)")
 	fmt.Println("  /show <entity-id>          - Display an entity (tab for autocomplete)")
 	fmt.Println("  /search <query>            - Search for entities")
 	fmt.Println("  /queue, /q                 - Manage pending sources")
@@ -249,6 +274,7 @@ func (c *CLI) showHelp() {
 	fmt.Println("  /link <from> <type> <to>   - Create relationship")
 	fmt.Println("  /merge <id1> <id2>         - Merge entity2 into entity1")
 	fmt.Println("  /rename <old-id> <new-id>  - Rename entity and update references")
+	fmt.Println("  /move <old-id> <new-id>    - Move entity (allows type change)")
 	fmt.Println("  /rebuild-refs              - Rebuild all back-references")
 	fmt.Println("  /clear                     - Clear screen")
 	fmt.Println("  /exit, /quit, /q           - Exit the program")
@@ -591,6 +617,47 @@ func (c *CLI) renameEntity(oldID, newID string) error {
 	return nil
 }
 
+func (c *CLI) moveEntity(oldID, newID string) error {
+	// Validate old entity exists
+	oldEntity, err := c.graph.LoadEntity(oldID)
+	if err != nil {
+		return fmt.Errorf("entity not found: %s", oldID)
+	}
+	// Check if new ID already exists
+	if c.graph.EntityExists(newID) {
+		return fmt.Errorf("entity already exists: %s", newID)
+	}
+	
+	// Extract types to show what's changing
+	oldParts := strings.SplitN(oldID, "/", 2)
+	newParts := strings.SplitN(newID, "/", 2)
+	if len(oldParts) != 2 || len(newParts) != 2 {
+		return fmt.Errorf("invalid ID format - must be 'type/name'")
+	}
+	
+	// Show what will happen
+	fmt.Printf("\n⚠️  This will move:\n")
+	fmt.Printf("  %s (%s)\n", oldEntity.Title, oldID)
+	fmt.Printf("  FROM: %s\n", oldParts[0])
+	fmt.Printf("  TO:   %s (%s)\n", newParts[0], newID)
+	if oldParts[0] != newParts[0] {
+		fmt.Printf("\n📝 Type will change from '%s' to '%s'\n", oldParts[0], newParts[0])
+	}
+	fmt.Printf("\nAll references will be updated throughout the graph.\n")
+	fmt.Print("Proceed? (y/N):\n")
+	confirmation, err := c.readline.Readline()
+	if err != nil || strings.ToLower(strings.TrimSpace(confirmation)) != "y" {
+		fmt.Println("Move cancelled.")
+		return nil
+	}
+	// Perform the move
+	if err := c.graph.MoveEntity(oldID, newID); err != nil {
+		return fmt.Errorf("move failed: %w", err)
+	}
+	fmt.Printf("\n✅ Successfully moved %s to %s\n", oldID, newID)
+	return nil
+}
+
 // handleNaturalQuery processes natural language queries using the LLM
 func (c *CLI) handleNaturalQuery(ctx context.Context, query string) error {
 	fmt.Println("🔍 Analyzing your query...")
@@ -733,12 +800,29 @@ Source: %s
 		return fmt.Errorf("failed to write source file: %w", err)
 	}
 
+	// Mark as processed in tracker
+	if c.tracker != nil {
+		c.tracker.MarkProcessed(source.URL, source.Title, filePath)
+		// Save tracker state
+		if err := c.tracker.Save(); err != nil {
+			// Log but don't fail
+			if c.debug {
+				fmt.Printf("[DEBUG] Failed to save tracker: %v\n", err)
+			}
+		}
+	}
+
 	return nil
 }
 
 // isSourceProcessed checks if a URL has already been processed
 func (c *CLI) isSourceProcessed(url string) bool {
-	// Check if source file exists
+	// Use the tracker for exact URL matching
+	if c.tracker != nil {
+		return c.tracker.IsProcessed(url)
+	}
+	
+	// Fallback to file-based check if tracker not available
 	domain := sources.ExtractDomain(url)
 	sourcesDir := filepath.Join(c.dataDir, "sources")
 
@@ -754,8 +838,6 @@ func (c *CLI) isSourceProcessed(url string) bool {
 		// Check if any file contains this URL
 		for _, file := range files {
 			if strings.Contains(file.Name(), domain) {
-				// Could read file and check URL in metadata for exact match
-				// For now, domain match is sufficient
 				return true
 			}
 		}

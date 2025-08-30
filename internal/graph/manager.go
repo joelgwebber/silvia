@@ -751,3 +751,146 @@ func (m *Manager) RenameEntity(oldID, newID string) error {
 	fmt.Printf("Successfully renamed %s to %s\n", oldID, newID)
 	return nil
 }
+
+// MoveEntity moves an entity to a new ID, allowing type changes
+func (m *Manager) MoveEntity(oldID, newID string) error {
+	// Validate the new ID format
+	if !strings.Contains(newID, "/") {
+		return fmt.Errorf("invalid entity ID format: must be 'type/name' (e.g., 'sources/article-name')")
+	}
+
+	// Check if old entity exists
+	oldEntity, err := m.LoadEntity(oldID)
+	if err != nil {
+		return fmt.Errorf("entity not found: %s", oldID)
+	}
+
+	// Check if new ID already exists
+	if m.EntityExists(newID) {
+		return fmt.Errorf("entity already exists: %s", newID)
+	}
+
+	// Extract the type from new ID
+	newParts := strings.SplitN(newID, "/", 2)
+	if len(newParts) != 2 {
+		return fmt.Errorf("invalid entity ID format")
+	}
+	newType := newParts[0]
+
+	fmt.Printf("Moving %s to %s...\n", oldID, newID)
+
+	// Create the moved entity
+	movedEntity := &Entity{
+		Metadata:      oldEntity.Metadata,
+		Title:         oldEntity.Title,
+		Content:       oldEntity.Content,
+		Relationships: oldEntity.Relationships,
+		BackRefs:      oldEntity.BackRefs,
+	}
+
+	// Update the entity ID and type
+	movedEntity.Metadata.ID = newID
+	movedEntity.Metadata.Type = EntityType(newType)
+
+	// Add the old ID as an alias if not already present
+	hasOldIDAsAlias := false
+	for _, alias := range movedEntity.Metadata.Aliases {
+		if alias == oldID {
+			hasOldIDAsAlias = true
+			break
+		}
+	}
+	if !hasOldIDAsAlias {
+		movedEntity.Metadata.Aliases = append(movedEntity.Metadata.Aliases, oldID)
+	}
+
+	// Update timestamp
+	movedEntity.Metadata.Updated = time.Now()
+
+	// Find and update all references to the old ID
+	fmt.Println("Updating references throughout the graph...")
+	allEntities, err := m.ListAllEntities()
+	if err != nil {
+		return fmt.Errorf("failed to list entities: %w", err)
+	}
+
+	updatedCount := 0
+	for _, entity := range allEntities {
+		if entity.Metadata.ID == oldID {
+			continue // Skip the entity being moved
+		}
+
+		modified := false
+
+		// Update wiki-links in content
+		if strings.Contains(entity.Content, "[["+oldID+"]]") {
+			entity.Content = strings.ReplaceAll(entity.Content, "[["+oldID+"]]", "[["+newID+"]]")
+			modified = true
+		}
+
+		// Check and update sources
+		for i, source := range entity.Metadata.Sources {
+			if source == oldID {
+				entity.Metadata.Sources[i] = newID
+				modified = true
+			}
+		}
+
+		// Check and update back references
+		for i, backRef := range entity.BackRefs {
+			if backRef.Source == oldID {
+				entity.BackRefs[i].Source = newID
+				modified = true
+			}
+		}
+
+		// Check and update relationships
+		for i, rel := range entity.Relationships {
+			if rel.Target == oldID {
+				entity.Relationships[i].Target = newID
+				modified = true
+			}
+		}
+
+		// Save if modified
+		if modified {
+			entity.Metadata.Updated = time.Now()
+			filePath := m.getEntityPath(entity.Metadata.ID)
+			if err := SaveEntityToFile(entity, filePath); err != nil {
+				fmt.Printf("Warning: failed to update references in %s: %v\n", entity.Metadata.ID, err)
+			} else {
+				updatedCount++
+				// Clear from cache
+				m.mu.Lock()
+				delete(m.cache, entity.Metadata.ID)
+				m.mu.Unlock()
+			}
+		}
+	}
+
+	fmt.Printf("Updated %d entities with new references\n", updatedCount)
+
+	// Save the moved entity with the new ID
+	newPath := m.getEntityPath(newID)
+	if err := SaveEntityToFile(movedEntity, newPath); err != nil {
+		return fmt.Errorf("failed to save moved entity: %w", err)
+	}
+
+	// Delete the old entity file
+	oldPath := m.getEntityPath(oldID)
+	if err := os.Remove(oldPath); err != nil {
+		return fmt.Errorf("failed to delete old entity file: %w", err)
+	}
+
+	// Update cache
+	m.mu.Lock()
+	delete(m.cache, oldID)
+	m.cache[newID] = &cacheEntry{
+		entity:   movedEntity,
+		loadedAt: time.Now(),
+	}
+	m.mu.Unlock()
+
+	fmt.Printf("Successfully moved %s to %s\n", oldID, newID)
+	return nil
+}

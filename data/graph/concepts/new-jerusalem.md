@@ -2,7 +2,7 @@
 id: concepts/new-jerusalem
 type: concept
 created: 2025-08-23T23:57:37.379165-04:00
-updated: 2025-08-25T18:09:12.464351-04:00
+updated: 2025-08-30T13:46:43.541109-04:00
 sources:
     - sources/dougwils-mission-babylon-2025
 ---

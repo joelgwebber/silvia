@@ -2,9 +2,9 @@
 id: organizations/turning-point-usa
 type: organization
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-25T18:09:12.467778-04:00
+updated: 2025-08-30T14:52:21.59787-04:00
 sources:
-    - works/politico-wilson-new-right-2025
+    - sources/politico-wilson-new-right-2025
 ---
 
 # Turning Point USA
@@ -28,6 +28,6 @@ A prominent conservative activist organization focused on promoting conservative
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[events/2024-turning-point-believers-summit]] ((mentioned_in))
-- [[works/politico-wilson-new-right-2025]] (mentioned_in)
+- [[events/2024-turning-point-believers-summit]] (mentioned_in)
+- [[sources/politico-wilson-new-right-2025]] (mentioned_in)
 

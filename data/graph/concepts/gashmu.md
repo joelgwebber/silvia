@@ -2,7 +2,7 @@
 id: concepts/gashmu
 type: concept
 created: 2025-08-23T23:57:37.378381-04:00
-updated: 2025-08-26T22:32:44.254347-04:00
+updated: 2025-08-30T13:46:43.541443-04:00
 sources:
     - sources/dougwils-mission-babylon-2025
 ---

@@ -2,9 +2,9 @@
 id: organizations/american-moment
 type: organization
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-25T18:09:12.467684-04:00
+updated: 2025-08-30T14:52:21.597047-04:00
 sources:
-    - works/politico-wilson-new-right-2025
+    - sources/politico-wilson-new-right-2025
 ---
 
 # American Moment
@@ -29,7 +29,7 @@ A MAGA-aligned talent pipeline organization that works to place conservative Chr
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[events/2023-american-moment-immigration-event]] (((mentioned_in)))
-- [[organizations/gop]] ((mentioned_in))
-- [[works/politico-wilson-new-right-2025]] (mentioned_in)
+- [[events/2023-american-moment-immigration-event]] (mentioned_in)
+- [[organizations/gop]] (mentioned_in)
+- [[sources/politico-wilson-new-right-2025]] (mentioned_in)
 

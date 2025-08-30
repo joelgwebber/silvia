@@ -2,9 +2,9 @@
 id: events/2023-american-moment-immigration-event
 type: event
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-26T22:32:44.25614-04:00
+updated: 2025-08-30T14:52:21.596796-04:00
 sources:
-    - works/politico-wilson-new-right-2025
+    - sources/politico-wilson-new-right-2025
 ---
 
 # American Moment Immigration Event (September 2023)
@@ -37,7 +37,7 @@ Following this event, Wilson began appearing in "more and more prominent spots,"
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[organizations/american-moment]] (((mentioned_in)))
-- [[sources/carlson-wilson-podcast-2024]] ((mentioned_in))
-- [[works/politico-wilson-new-right-2025]] (mentioned_in)
+- [[organizations/american-moment]] (mentioned_in)
+- [[sources/carlson-wilson-podcast-2024]] (mentioned_in)
+- [[sources/politico-wilson-new-right-2025]] (mentioned_in)
 

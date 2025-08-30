@@ -3,6 +3,7 @@ package sources
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -63,7 +64,8 @@ type SourceSummary struct {
 
 // Extractor uses LLM to extract entities from content
 type Extractor struct {
-	llm *llm.Client
+	llm   *llm.Client
+	debug bool
 }
 
 // NewExtractor creates a new entity extractor
@@ -74,6 +76,11 @@ func NewExtractor(llmClient *llm.Client) *Extractor {
 	return &Extractor{
 		llm: llmClient,
 	}
+}
+
+// SetDebug enables or disables debug mode
+func (e *Extractor) SetDebug(debug bool) {
+	e.debug = debug
 }
 
 // GenerateSourceSummary creates a structured summary of a source
@@ -119,6 +126,10 @@ Output JSON with this structure:
 		return nil, fmt.Errorf("failed to generate summary: %w", err)
 	}
 
+	if e.debug {
+		fmt.Printf("\n[DEBUG] LLM Response for source summary:\n%s\n", response)
+	}
+
 	// Parse response
 	var result struct {
 		Title       string   `json:"title"`
@@ -130,18 +141,48 @@ Output JSON with this structure:
 		Analysis    string   `json:"analysis"`
 	}
 
-	if err := json.Unmarshal([]byte(response), &result); err != nil {
-		// Try to extract JSON from response
+	// Clean and parse JSON
+	jsonStr := response
+	
+	// Try to extract JSON if wrapped in markdown or other text
+	if !strings.HasPrefix(strings.TrimSpace(response), "{") {
 		jsonStart := strings.Index(response, "{")
 		jsonEnd := strings.LastIndex(response, "}")
 		if jsonStart >= 0 && jsonEnd > jsonStart {
-			jsonStr := response[jsonStart : jsonEnd+1]
-			if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-				return nil, fmt.Errorf("failed to parse summary: %w", err)
-			}
-		} else {
-			return nil, fmt.Errorf("failed to parse summary: %w", err)
+			jsonStr = response[jsonStart : jsonEnd+1]
 		}
+	}
+	
+	// Remove any markdown code block markers
+	jsonStr = strings.ReplaceAll(jsonStr, "```json", "")
+	jsonStr = strings.ReplaceAll(jsonStr, "```", "")
+	jsonStr = strings.TrimSpace(jsonStr)
+	
+	if e.debug {
+		fmt.Printf("[DEBUG] Cleaned JSON:\n%s\n", jsonStr)
+	}
+
+	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
+		if e.debug {
+			fmt.Printf("[DEBUG] JSON parse error: %v\n", err)
+			// Try to identify the specific issue
+			var syntaxErr *json.SyntaxError
+			if errors.As(err, &syntaxErr) {
+				fmt.Printf("[DEBUG] Syntax error at byte %d: %s\n", syntaxErr.Offset, syntaxErr.Error())
+				if syntaxErr.Offset > 0 && syntaxErr.Offset < int64(len(jsonStr)) {
+					start := syntaxErr.Offset - 20
+					if start < 0 {
+						start = 0
+					}
+					end := syntaxErr.Offset + 20
+					if end > int64(len(jsonStr)) {
+						end = int64(len(jsonStr))
+					}
+					fmt.Printf("[DEBUG] Context: ...%s...\n", jsonStr[start:end])
+				}
+			}
+		}
+		return nil, fmt.Errorf("failed to parse summary JSON: %w (response length: %d)", err, len(response))
 	}
 
 	// Build summary with entity references
@@ -219,11 +260,17 @@ func (e *Extractor) generateEntityID(name string, entityType graph.EntityType) s
 func (e *Extractor) Extract(ctx context.Context, source *Source) (*ExtractionResult, error) {
 	// First, clean and prepare the list of raw links
 	cleanedLinks := e.cleanLinks(source.Links, source.URL)
+	
+	if e.debug {
+		fmt.Printf("[DEBUG] Extract: Source has %d raw links, %d after cleaning\n", len(source.Links), len(cleanedLinks))
+	}
 
 	systemPrompt := `You are an intelligent content analyzer for a knowledge graph system. Analyze the provided article and extract:
 1. Important entities (people, organizations, concepts, works, events)
 2. Relationships between entities
-3. Relevant links that would be valuable to explore
+3. Relevant links from the provided list that would be valuable to explore further
+
+IMPORTANT: You will be provided with a list of links found in the article. Review these links and include the most relevant ones in your response.
 
 For EACH entity, provide:
 - A brief one-line description
@@ -256,11 +303,13 @@ For people, include:
 
 Be comprehensive but focused - extract ALL the relevant information about each entity from the article.
 
-For links, you should:
-- ONLY include links that are directly referenced or discussed in the article content
-- Categorize each link (reference, discussion, resource, navigation, advertisement)
-- Rate relevance (high, medium, low) based on how central the link is to the article's topic
-- Filter out navigation and advertisement links
+For links provided in the source, evaluate each one and:
+- Include links that could provide valuable context or additional information
+- Look for links to sources, references, related articles, or supporting documentation
+- Categorize each link: reference (cited source), discussion (related topic), resource (tool/data), navigation (site nav), advertisement (promotional)
+- Rate relevance: high (directly related to main topic), medium (provides context), low (tangentially related)
+- You can include up to 20 of the most relevant links
+- Prioritize reference and discussion links over navigation/ads
 
 Output JSON with this structure:
 {
@@ -298,14 +347,20 @@ Create rich, interconnected entities that capture the full context and significa
 	// Include the links in the prompt so the LLM can analyze them
 	linksSection := ""
 	if len(cleanedLinks) > 0 {
-		linksSection = "\n\nLinks found in content:\n"
+		linksSection = "\n\n=== LINKS TO ANALYZE ===\nPlease review these links and include the most relevant ones in your 'links' array:\n"
 		for i, link := range cleanedLinks {
-			if i > 50 { // Limit to first 50 to save tokens
-				linksSection += fmt.Sprintf("... and %d more links\n", len(cleanedLinks)-50)
+			if i >= 30 { // Limit to first 30 to save tokens but get better coverage
+				linksSection += fmt.Sprintf("\n... and %d more links available\n", len(cleanedLinks)-30)
 				break
 			}
-			linksSection += fmt.Sprintf("- %s\n", link)
+			linksSection += fmt.Sprintf("%d. %s\n", i+1, link)
 		}
+		linksSection += "\n=== END OF LINKS ===\n"
+		if e.debug {
+			fmt.Printf("[DEBUG] Including %d links in LLM prompt (showing first 30)\n", len(cleanedLinks))
+		}
+	} else if e.debug {
+		fmt.Printf("[DEBUG] No links to include in LLM prompt\n")
 	}
 
 	userPrompt := fmt.Sprintf("Analyze this content:\n\nTitle: %s\nSource URL: %s\n\nContent:\n%s%s",
@@ -359,6 +414,14 @@ Create rich, interconnected entities that capture the full context and significa
 			return nil, fmt.Errorf("failed to parse LLM response: %w", err)
 		}
 	}
+	
+	if e.debug {
+		fmt.Printf("[DEBUG] LLM returned: %d entities, %d relationships, %d links\n", 
+			len(llmResult.Entities), len(llmResult.Relationships), len(llmResult.Links))
+		if len(llmResult.Links) > 0 {
+			fmt.Printf("[DEBUG] First link from LLM: %+v\n", llmResult.Links[0])
+		}
+	}
 
 	// Convert to our format
 	result := &ExtractionResult{
@@ -395,14 +458,18 @@ Create rich, interconnected entities that capture the full context and significa
 	}
 
 	// Process links - filter out navigation and low-relevance items
+	skippedNav := 0
+	skippedLow := 0
 	for _, link := range llmResult.Links {
 		// Skip navigation and advertisement links
 		if link.Category == "navigation" || link.Category == "advertisement" {
+			skippedNav++
 			continue
 		}
 
 		// Skip low relevance links unless we have very few
-		if link.Relevance == "low" && len(result.Links) > 5 {
+		if link.Relevance == "low" && len(result.Links) > 10 {
+			skippedLow++
 			continue
 		}
 
@@ -419,6 +486,11 @@ Create rich, interconnected entities that capture the full context and significa
 
 		// Also add to simple list for backward compatibility
 		result.LinkedSources = append(result.LinkedSources, absoluteURL)
+	}
+	
+	if e.debug && (skippedNav > 0 || skippedLow > 0) {
+		fmt.Printf("[DEBUG] Link filtering: skipped %d nav/ads, %d low relevance, kept %d links\n", 
+			skippedNav, skippedLow, len(result.Links))
 	}
 
 	// Generate source summary

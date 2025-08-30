@@ -2,7 +2,7 @@
 id: sources/www-newsweek-com-2025-08-25
 type: work
 created: 2025-08-25T14:59:54.988146-04:00
-updated: 2025-08-25T18:09:12.46134-04:00
+updated: 2025-08-30T13:46:43.535162-04:00
 sources:
     - https://www.newsweek.com/there-anything-actually-wrong-christian-nationalism-opinion-1577519
 ---
@@ -50,12 +50,12 @@ Russ Vought's opinion piece delves into the contentious topic of 'Christian nati
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[organizations/supreme-court]] ((((((((sourced_from))))))))
-- [[people/andrew-whitehead]] (((((((sourced_from)))))))
-- [[people/george-washington]] ((((((sourced_from))))))
-- [[people/russ-vought]] (((((sourced_from)))))
-- [[people/samuel-perry]] ((((sourced_from))))
-- [[people/tim-keller]] (((sourced_from)))
-- [[people/whittaker-chambers]] ((sourced_from))
+- [[organizations/supreme-court]] (sourced_from)
+- [[people/andrew-whitehead]] (sourced_from)
+- [[people/george-washington]] (sourced_from)
+- [[people/russ-vought]] (sourced_from)
+- [[people/samuel-perry]] (sourced_from)
+- [[people/tim-keller]] (sourced_from)
+- [[people/whittaker-chambers]] (sourced_from)
 - [[people/yoram-hazony]] (sourced_from)
 

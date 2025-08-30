@@ -1,8 +1,10 @@
 ---
-id: works/politico-wilson-new-right-2025
-type: work
+id: sources/politico-wilson-new-right-2025
+type: sources
+aliases:
+    - works/politico-wilson-new-right-2025
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-26T23:43:58.978041-04:00
+updated: 2025-08-30T14:52:21.584165-04:00
 ---
 
 # Doug Wilson's Moment (Politico, 2025)
@@ -85,22 +87,22 @@ A comprehensive profile of Doug Wilson's rise from fringe Christian nationalist 
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[concepts/moscow-idaho]] ((((((((((((((((((sourced_from))))))))))))))))))
-- [[events/2023-american-moment-immigration-event]] (((((((((((((((((sourced_from)))))))))))))))))
-- [[events/2024-national-conservatism-conference]] ((((((((((((((((sourced_from))))))))))))))))
-- [[events/2024-turning-point-believers-summit]] (((((((((((((((sourced_from)))))))))))))))
-- [[organizations/american-moment]] ((((((((((((((sourced_from))))))))))))))
-- [[organizations/christ-church]] (((((((((((((sourced_from)))))))))))))
-- [[organizations/communion-of-reformed-evangelical-churches-crec]] ((((((((((((sourced_from))))))))))))
-- [[organizations/gop]] (((((((((((sourced_from)))))))))))
-- [[organizations/new-founding]] ((((((((((sourced_from))))))))))
-- [[organizations/turning-point-usa]] (((((((((sourced_from)))))))))
-- [[people/charlie-kirk]] ((((((((sourced_from))))))))
-- [[people/donald-trump]] (((((((sourced_from)))))))
-- [[people/ian-ward]] ((((((sourced_from))))))
-- [[people/jeb-stuart]] (((((sourced_from)))))
-- [[people/pastor-doug-wilson]] ((((sourced_from))))
-- [[people/pete-hegseth]] (((sourced_from)))
-- [[people/rajah-bose]] ((sourced_from))
+- [[concepts/moscow-idaho]] (sourced_from)
+- [[events/2023-american-moment-immigration-event]] (sourced_from)
+- [[events/2024-national-conservatism-conference]] (sourced_from)
+- [[events/2024-turning-point-believers-summit]] (sourced_from)
+- [[organizations/american-moment]] (sourced_from)
+- [[organizations/christ-church]] (sourced_from)
+- [[organizations/communion-of-reformed-evangelical-churches-crec]] (sourced_from)
+- [[organizations/gop]] (sourced_from)
+- [[organizations/new-founding]] (sourced_from)
+- [[organizations/turning-point-usa]] (sourced_from)
+- [[people/charlie-kirk]] (sourced_from)
+- [[people/donald-trump]] (sourced_from)
+- [[people/ian-ward]] (sourced_from)
+- [[people/jeb-stuart]] (sourced_from)
+- [[people/pastor-doug-wilson]] (sourced_from)
+- [[people/pete-hegseth]] (sourced_from)
+- [[people/rajah-bose]] (sourced_from)
 - [[people/tucker-carlson]] (sourced_from)
 

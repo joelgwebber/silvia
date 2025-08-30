@@ -2,7 +2,7 @@
 id: sources/claremont-homepage-2024
 type: source
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-26T22:32:44.247018-04:00
+updated: 2025-08-30T13:46:43.532254-04:00
 ---
 
 # Claremont Institute Homepage (2024)
@@ -44,10 +44,10 @@ The Claremont Institute serves as a key intellectual infrastructure for:
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[concepts/american-mind]] ((((((sourced_from))))))
-- [[concepts/claremont-review-of-books]] (((((sourced_from)))))
-- [[concepts/founding-com]] ((((sourced_from))))
-- [[organizations/center-for-the-american-way-of-life]] (((sourced_from)))
-- [[organizations/claremont-institute]] ((sourced_from))
+- [[concepts/american-mind]] (sourced_from)
+- [[concepts/claremont-review-of-books]] (sourced_from)
+- [[concepts/founding-com]] (sourced_from)
+- [[organizations/center-for-the-american-way-of-life]] (sourced_from)
+- [[organizations/claremont-institute]] (sourced_from)
 - [[people/jd-vance]] (sourced_from)
 

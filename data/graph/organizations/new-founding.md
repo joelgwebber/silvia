@@ -2,9 +2,9 @@
 id: organizations/new-founding
 type: organization
 created: 2025-08-25T00:00:00-04:00
-updated: 2025-08-25T18:09:12.467578-04:00
+updated: 2025-08-30T14:52:21.597775-04:00
 sources:
-    - works/politico-wilson-new-right-2025
+    - sources/politico-wilson-new-right-2025
 ---
 
 # New Founding
@@ -35,7 +35,7 @@ A venture firm founded by graduates of Doug Wilson's New Saint Andrews College t
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[organizations/claremont-institute]] (((mentioned_in)))
-- [[sources/claremont-homepage-2024]] ((mentioned_in))
-- [[works/politico-wilson-new-right-2025]] (mentioned_in)
+- [[organizations/claremont-institute]] (mentioned_in)
+- [[sources/claremont-homepage-2024]] (mentioned_in)
+- [[sources/politico-wilson-new-right-2025]] (mentioned_in)
 

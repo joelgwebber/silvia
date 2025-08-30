@@ -2,7 +2,7 @@
 id: concepts/claremont-review-of-books
 type: concept
 created: 2025-08-24T21:57:12.527638-04:00
-updated: 2025-08-25T18:09:12.461992-04:00
+updated: 2025-08-30T13:46:43.535893-04:00
 sources:
     - sources/claremont-homepage-2024
 ---
