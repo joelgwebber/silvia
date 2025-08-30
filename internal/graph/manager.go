@@ -421,19 +421,19 @@ func (m *Manager) RebuildAllBackReferences() error {
 	updatedCount := 0
 	for _, entity := range entities {
 		newRefs := newBackRefs[entity.Metadata.ID]
-		
+
 		// Check if back-references have changed
 		if !backReferencesEqual(entity.BackRefs, newRefs) {
 			entity.BackRefs = newRefs
 			entity.Metadata.Updated = time.Now()
-			
+
 			filePath := m.getEntityPath(entity.Metadata.ID)
 			if err := SaveEntityToFile(entity, filePath); err != nil {
 				fmt.Printf("Warning: failed to update %s: %v\n", entity.Metadata.ID, err)
 			} else {
 				updatedCount++
 			}
-			
+
 			// Clear from cache
 			m.mu.Lock()
 			delete(m.cache, entity.Metadata.ID)
@@ -452,21 +452,21 @@ func backReferencesEqual(a, b []BackReference) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	
+
 	// Create maps for efficient comparison
 	aMap := make(map[string]BackReference)
 	for _, ref := range a {
 		key := ref.Source + "|" + ref.Type + "|" + ref.Note
 		aMap[key] = ref
 	}
-	
+
 	for _, ref := range b {
 		key := ref.Source + "|" + ref.Type + "|" + ref.Note
 		if _, exists := aMap[key]; !exists {
 			return false
 		}
 	}
-	
+
 	return true
 }
 

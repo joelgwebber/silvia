@@ -24,7 +24,7 @@ func (c *CLI) IngestFromExtension(ctx context.Context, url string, html string, 
 		fmt.Printf("⚠️  Source already processed: %s\n", url)
 		return fmt.Errorf("source already ingested: %s", url)
 	}
-	
+
 	if force && c.isSourceProcessed(url) {
 		fmt.Printf("🔄 Force update: Re-processing %s\n", url)
 		// Remove from tracker to allow re-processing
@@ -32,7 +32,7 @@ func (c *CLI) IngestFromExtension(ctx context.Context, url string, html string, 
 			c.tracker.RemoveProcessed(url)
 		}
 	}
-	
+
 	// Convert extension links to source links
 	var sourceLinks []string
 	linkMap := make(map[string]string) // URL -> context mapping
@@ -42,7 +42,7 @@ func (c *CLI) IngestFromExtension(ctx context.Context, url string, html string, 
 			linkMap[link.URL] = link.Context
 		}
 	}
-	
+
 	if c.debug {
 		fmt.Printf("[DEBUG] Received %d links from extension\n", len(links))
 		if len(links) > 0 && len(links) <= 5 {
@@ -56,7 +56,7 @@ func (c *CLI) IngestFromExtension(ctx context.Context, url string, html string, 
 			}
 		}
 	}
-	
+
 	// Create a Source object from extension data
 	source := &sources.Source{
 		URL:        url,
@@ -66,7 +66,7 @@ func (c *CLI) IngestFromExtension(ctx context.Context, url string, html string, 
 		Links:      sourceLinks,
 		Metadata:   metadata,
 	}
-	
+
 	// Add extension-specific metadata
 	if source.Metadata == nil {
 		source.Metadata = make(map[string]string)
@@ -74,19 +74,19 @@ func (c *CLI) IngestFromExtension(ctx context.Context, url string, html string, 
 	source.Metadata["fetched_at"] = time.Now().Format(time.RFC3339)
 	source.Metadata["capture_method"] = "extension"
 	source.Metadata["domain"] = sources.ExtractDomain(url)
-	
+
 	// Convert HTML to markdown if we have HTML content
 	if html != "" {
 		// Use the existing HTML to markdown converter
 		webFetcher := sources.NewWebFetcher()
 		markdown := webFetcher.ConvertHTMLToMarkdown(html)
 		source.Content = markdown
-		
+
 		if c.debug {
 			// Count markdown links to verify conversion
 			linkCount := strings.Count(markdown, "](")
 			fmt.Printf("[DEBUG] HTML conversion: Found %d markdown links in converted content\n", linkCount)
-			
+
 			// Show first few links for verification
 			if linkCount > 0 {
 				lines := strings.Split(markdown, "\n")
@@ -99,7 +99,7 @@ func (c *CLI) IngestFromExtension(ctx context.Context, url string, html string, 
 				}
 			}
 		}
-		
+
 		// Try to extract title from HTML if not provided
 		if title == "" {
 			source.Title = webFetcher.ExtractTitleFromHTML(html)
@@ -108,7 +108,7 @@ func (c *CLI) IngestFromExtension(ctx context.Context, url string, html string, 
 		// Fallback to text content if no HTML
 		source.Content = metadata["text"]
 	}
-	
+
 	// Check if this looks like a Bluesky post
 	if strings.Contains(url, "bsky.app") || strings.Contains(url, "bsky.social") {
 		// Route to Bluesky fetcher for special handling
@@ -125,25 +125,25 @@ func (c *CLI) IngestFromExtension(ctx context.Context, url string, html string, 
 			}
 		}
 	}
-	
+
 	// Save the source content
 	if err := c.saveSource(source); err != nil {
 		// Log but don't fail the ingestion
 		fmt.Printf("Warning: Failed to save source content: %v\n", err)
 	}
-	
+
 	// Extract entities and relationships using LLM
 	fmt.Println(InfoStyle.Render("🔍 Extracting entities from extension capture..."))
 	extraction, err := c.extractor.Extract(ctx, source)
 	if err != nil {
 		return fmt.Errorf("extraction failed: %w", err)
 	}
-	
+
 	if c.debug {
-		fmt.Printf("[DEBUG] Extraction complete. Found %d entities, %d relationships, %d links\n", 
+		fmt.Printf("[DEBUG] Extraction complete. Found %d entities, %d relationships, %d links\n",
 			len(extraction.Entities), len(extraction.Relationships), len(extraction.Links))
 	}
-	
+
 	// Process the extraction (same as regular ingestion)
 	return c.processExtraction(ctx, source, extraction, linkMap)
 }
@@ -155,14 +155,14 @@ func (c *CLI) processExtraction(ctx context.Context, source *sources.Source, ext
 	if extraction.SourceSummary != nil {
 		sourceSummaryID = c.createSourceSummary(source, extraction.SourceSummary, source.URL)
 	}
-	
+
 	// Process extracted entities
 	if len(extraction.Entities) > 0 {
 		fmt.Printf("Found %d entities\n", len(extraction.Entities))
 		for _, entity := range extraction.Entities {
 			// Create or update entity in graph
 			id := c.generateEntityID(entity.Name, entity.Type)
-			
+
 			// Check if entity exists
 			if !c.graph.EntityExists(id) {
 				// Create new entity
@@ -170,14 +170,14 @@ func (c *CLI) processExtraction(ctx context.Context, source *sources.Source, ext
 				graphEntity.Title = entity.Name
 				graphEntity.Content = entity.Content
 				graphEntity.Metadata.Aliases = entity.Aliases
-				
+
 				// Reference source summary if available, otherwise raw URL
 				if sourceSummaryID != "" {
 					graphEntity.AddSource(sourceSummaryID)
 				} else {
 					graphEntity.AddSource(source.URL)
 				}
-				
+
 				if err := c.graph.SaveEntity(graphEntity); err != nil {
 					fmt.Printf("Warning: Failed to save %s: %v\n", entity.Name, err)
 				} else {
@@ -201,7 +201,7 @@ func (c *CLI) processExtraction(ctx context.Context, source *sources.Source, ext
 			}
 		}
 	}
-	
+
 	// Process relationships
 	if len(extraction.Relationships) > 0 {
 		fmt.Printf("Found %d relationships\n", len(extraction.Relationships))
@@ -209,7 +209,7 @@ func (c *CLI) processExtraction(ctx context.Context, source *sources.Source, ext
 			fmt.Printf("  • %s → %s → %s\n", rel.Source, rel.Type, rel.Target)
 		}
 	}
-	
+
 	// Add relevant links to queue with context
 	if len(extraction.Links) > 0 {
 		added := 0
@@ -218,18 +218,18 @@ func (c *CLI) processExtraction(ctx context.Context, source *sources.Source, ext
 			if c.queue.Contains(link.URL) || c.isSourceProcessed(link.URL) {
 				continue
 			}
-			
+
 			// Skip low relevance links
 			if link.Relevance == "low" {
 				continue
 			}
-			
+
 			// Build description with context if available
 			desc := ""
 			if link.Relevance == "high" {
 				desc = "⭐ "
 			}
-			
+
 			// Add context from extension if available
 			if context, ok := linkContextMap[link.URL]; ok && context != "" {
 				desc += fmt.Sprintf("[%s] %s", link.Category, context)
@@ -243,23 +243,23 @@ func (c *CLI) processExtraction(ctx context.Context, source *sources.Source, ext
 			} else {
 				desc += fmt.Sprintf("[%s] from %s", link.Category, source.Title)
 			}
-			
+
 			// Add with appropriate priority
 			priority := PriorityMedium
 			if link.Relevance == "high" {
 				priority = PriorityHigh
 			}
-			
+
 			if c.queue.Add(link.URL, priority, source.URL, desc) {
 				added++
 			}
 		}
-		
+
 		if added > 0 {
 			fmt.Printf("Added %d links to queue\n", added)
 			c.queue.SaveToFile()
 		}
 	}
-	
+
 	return nil
 }

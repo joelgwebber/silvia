@@ -627,14 +627,14 @@ func (c *CLI) moveEntity(oldID, newID string) error {
 	if c.graph.EntityExists(newID) {
 		return fmt.Errorf("entity already exists: %s", newID)
 	}
-	
+
 	// Extract types to show what's changing
 	oldParts := strings.SplitN(oldID, "/", 2)
 	newParts := strings.SplitN(newID, "/", 2)
 	if len(oldParts) != 2 || len(newParts) != 2 {
 		return fmt.Errorf("invalid ID format - must be 'type/name'")
 	}
-	
+
 	// Show what will happen
 	fmt.Printf("\n⚠️  This will move:\n")
 	fmt.Printf("  %s (%s)\n", oldEntity.Title, oldID)
@@ -821,7 +821,7 @@ func (c *CLI) isSourceProcessed(url string) bool {
 	if c.tracker != nil {
 		return c.tracker.IsProcessed(url)
 	}
-	
+
 	// Fallback to file-based check if tracker not available
 	domain := sources.ExtractDomain(url)
 	sourcesDir := filepath.Join(c.dataDir, "sources")

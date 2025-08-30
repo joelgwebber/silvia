@@ -143,7 +143,7 @@ Output JSON with this structure:
 
 	// Clean and parse JSON
 	jsonStr := response
-	
+
 	// Try to extract JSON if wrapped in markdown or other text
 	if !strings.HasPrefix(strings.TrimSpace(response), "{") {
 		jsonStart := strings.Index(response, "{")
@@ -152,12 +152,12 @@ Output JSON with this structure:
 			jsonStr = response[jsonStart : jsonEnd+1]
 		}
 	}
-	
+
 	// Remove any markdown code block markers
 	jsonStr = strings.ReplaceAll(jsonStr, "```json", "")
 	jsonStr = strings.ReplaceAll(jsonStr, "```", "")
 	jsonStr = strings.TrimSpace(jsonStr)
-	
+
 	if e.debug {
 		fmt.Printf("[DEBUG] Cleaned JSON:\n%s\n", jsonStr)
 	}
@@ -260,7 +260,7 @@ func (e *Extractor) generateEntityID(name string, entityType graph.EntityType) s
 func (e *Extractor) Extract(ctx context.Context, source *Source) (*ExtractionResult, error) {
 	// First, clean and prepare the list of raw links
 	cleanedLinks := e.cleanLinks(source.Links, source.URL)
-	
+
 	if e.debug {
 		fmt.Printf("[DEBUG] Extract: Source has %d raw links, %d after cleaning\n", len(source.Links), len(cleanedLinks))
 	}
@@ -414,9 +414,9 @@ Create rich, interconnected entities that capture the full context and significa
 			return nil, fmt.Errorf("failed to parse LLM response: %w", err)
 		}
 	}
-	
+
 	if e.debug {
-		fmt.Printf("[DEBUG] LLM returned: %d entities, %d relationships, %d links\n", 
+		fmt.Printf("[DEBUG] LLM returned: %d entities, %d relationships, %d links\n",
 			len(llmResult.Entities), len(llmResult.Relationships), len(llmResult.Links))
 		if len(llmResult.Links) > 0 {
 			fmt.Printf("[DEBUG] First link from LLM: %+v\n", llmResult.Links[0])
@@ -487,9 +487,9 @@ Create rich, interconnected entities that capture the full context and significa
 		// Also add to simple list for backward compatibility
 		result.LinkedSources = append(result.LinkedSources, absoluteURL)
 	}
-	
+
 	if e.debug && (skippedNav > 0 || skippedLow > 0) {
-		fmt.Printf("[DEBUG] Link filtering: skipped %d nav/ads, %d low relevance, kept %d links\n", 
+		fmt.Printf("[DEBUG] Link filtering: skipped %d nav/ads, %d low relevance, kept %d links\n",
 			skippedNav, skippedLow, len(result.Links))
 	}
 

@@ -92,7 +92,7 @@ func main() {
 
 	// Initialize CLI
 	cliInterface := cli.NewCLI(graphManager, llmClient)
-	
+
 	// Enable debug mode if requested
 	if debug {
 		log.Println("Debug mode enabled")
@@ -120,7 +120,7 @@ func main() {
 			}
 			return cliInterface.IngestFromExtension(ctx, url, html, title, cliLinks, metadata, force)
 		}
-		
+
 		apiServer := server.NewServer(serverPort, serverToken, ingestHandler)
 		go func() {
 			if err := apiServer.Start(); err != nil && err != http.ErrServerClosed {
@@ -128,7 +128,7 @@ func main() {
 			}
 		}()
 		log.Printf("Extension API server started on port %d", serverPort)
-		
+
 		// Ensure server stops on exit
 		defer func() {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -28,7 +28,7 @@ func (c *CLI) ingestSourceWithForce(ctx context.Context, url string, force bool)
 		c.queue.SaveToFile()
 		return nil
 	}
-	
+
 	if force && c.isSourceProcessed(url) {
 		fmt.Println(InfoStyle.Render("🔄 Force update: Re-processing ") + URLStyle.Render(url))
 		// Remove from tracker to allow re-processing
@@ -36,7 +36,7 @@ func (c *CLI) ingestSourceWithForce(ctx context.Context, url string, force bool)
 			c.tracker.RemoveProcessed(url)
 		}
 	}
-	
+
 	fmt.Println(InfoStyle.Render("📥 Ingesting source: ") + URLStyle.Render(url))
 
 	// Fetch the source

@@ -167,7 +167,7 @@ func htmlToMarkdown(html string) string {
 
 	styleRe := regexp.MustCompile(`(?is)<style[^>]*>.*?</style>`)
 	html = styleRe.ReplaceAllString(html, "")
-	
+
 	// Remove comments
 	html = regexp.MustCompile(`(?is)<!--.*?-->`).ReplaceAllString(html, "")
 
@@ -179,15 +179,15 @@ func htmlToMarkdown(html string) string {
 
 	// IMPORTANT: Convert links FIRST, before other conversions
 	// This ensures we catch all links before they might be affected by other transformations
-	
+
 	// Handle all <a> tags - use a more robust approach
 	// Match any <a> tag with href, capturing everything until the closing </a>
 	linkRe := regexp.MustCompile(`(?is)<a\s+[^>]*href\s*=\s*["']([^"']+)["'][^>]*>(.*?)</a>`)
 	var linkReplacements []struct {
-		original string
+		original    string
 		replacement string
 	}
-	
+
 	// Find all links first
 	matches := linkRe.FindAllStringSubmatch(html, -1)
 	for _, match := range matches {
@@ -195,32 +195,32 @@ func htmlToMarkdown(html string) string {
 			original := match[0]
 			href := match[1]
 			content := match[2]
-			
+
 			// Clean the content of nested HTML tags
 			content = stripHTMLTags(content)
 			content = strings.TrimSpace(content)
-			
+
 			// Skip empty links
 			if content == "" {
 				continue
 			}
-			
+
 			// Store the replacement
 			linkReplacements = append(linkReplacements, struct {
-				original string
+				original    string
 				replacement string
 			}{
-				original: original,
+				original:    original,
 				replacement: fmt.Sprintf("[%s](%s)", content, href),
 			})
 		}
 	}
-	
+
 	// Apply all link replacements
 	for _, lr := range linkReplacements {
 		html = strings.ReplaceAll(html, lr.original, lr.replacement)
 	}
-	
+
 	// Now convert headers
 	html = regexp.MustCompile(`(?i)<h1[^>]*>`).ReplaceAllString(html, "\n# ")
 	html = regexp.MustCompile(`(?i)</h1>`).ReplaceAllString(html, "\n\n")
@@ -234,7 +234,7 @@ func htmlToMarkdown(html string) string {
 	// Convert paragraphs
 	html = regexp.MustCompile(`(?i)<p[^>]*>`).ReplaceAllString(html, "\n\n")
 	html = regexp.MustCompile(`(?i)</p>`).ReplaceAllString(html, "\n\n")
-	
+
 	// Convert line breaks
 	html = regexp.MustCompile(`(?i)<br[^>]*>`).ReplaceAllString(html, "\n")
 
