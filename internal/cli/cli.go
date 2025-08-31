@@ -25,6 +25,7 @@ type CLI struct {
 	sources   *sources.Manager
 	extractor *sources.Extractor
 	tracker   *SourceTracker
+	registry  *CommandRegistry
 	dataDir   string
 	debug     bool
 }
@@ -39,6 +40,7 @@ func NewCLI(graphManager *graph.Manager, llmClient *llm.Client) *CLI {
 		sources:   sources.NewManager(),
 		extractor: sources.NewExtractor(llmClient),
 		tracker:   NewSourceTracker(dataDir),
+		registry:  NewCommandRegistry(),
 		dataDir:   dataDir,
 	}
 }
@@ -111,46 +113,54 @@ func (c *CLI) Run(ctx context.Context) error {
 	return nil
 }
 
-// buildAutoCompleter creates the autocompletion configuration
+// buildAutoCompleter creates the autocompletion configuration from the registry
 func (c *CLI) buildAutoCompleter() *readline.PrefixCompleter {
-	return readline.NewPrefixCompleter(
-		readline.PcItem("/help"),
-		readline.PcItem("/ingest"),
-		readline.PcItem("/show",
-			readline.PcItemDynamic(c.listEntityIDs()),
-		),
-		readline.PcItem("/search"),
-		readline.PcItem("/queue"),
-		readline.PcItem("/explore",
-			readline.PcItem("queue"),
-		),
-		readline.PcItem("/related",
-			readline.PcItemDynamic(c.listEntityIDs()),
-		),
-		readline.PcItem("/create",
-			readline.PcItem("person"),
-			readline.PcItem("organization"),
-			readline.PcItem("concept"),
-			readline.PcItem("work"),
-			readline.PcItem("event"),
-		),
-		readline.PcItem("/link",
-			readline.PcItemDynamic(c.listEntityIDs()),
-		),
-		readline.PcItem("/merge",
-			readline.PcItemDynamic(c.listEntityIDs()),
-		),
-		readline.PcItem("/rename",
-			readline.PcItemDynamic(c.listEntityIDs()),
-		),
-		readline.PcItem("/move",
-			readline.PcItemDynamic(c.listEntityIDs()),
-		),
-		readline.PcItem("/clear"),
-		readline.PcItem("/exit"),
-		readline.PcItem("/quit"),
-		readline.PcItem("/q"),
-	)
+	var items []readline.PrefixCompleterInterface
+	processed := make(map[string]bool)
+	
+	for _, cmd := range c.registry.GetAll() {
+		// Skip if we've already processed this command (aliases handled separately)
+		if processed[cmd.Name] {
+			continue
+		}
+		processed[cmd.Name] = true
+		
+		// Create completion item
+		var item readline.PrefixCompleterInterface
+		
+		if cmd.Dynamic {
+			// Commands with dynamic entity ID completion
+			item = readline.PcItem(cmd.Name, readline.PcItemDynamic(c.listEntityIDs()))
+		} else if len(cmd.SubCommands) > 0 {
+			// Commands with sub-commands
+			var subItems []readline.PrefixCompleterInterface
+			for _, sub := range cmd.SubCommands {
+				subItems = append(subItems, readline.PcItem(sub))
+			}
+			item = readline.PcItem(cmd.Name, subItems...)
+		} else {
+			// Simple commands
+			item = readline.PcItem(cmd.Name)
+		}
+		items = append(items, item)
+		
+		// Add aliases as separate items
+		for _, alias := range cmd.Aliases {
+			if cmd.Dynamic {
+				items = append(items, readline.PcItem(alias, readline.PcItemDynamic(c.listEntityIDs())))
+			} else if len(cmd.SubCommands) > 0 {
+				var subItems []readline.PrefixCompleterInterface
+				for _, sub := range cmd.SubCommands {
+					subItems = append(subItems, readline.PcItem(sub))
+				}
+				items = append(items, readline.PcItem(alias, subItems...))
+			} else {
+				items = append(items, readline.PcItem(alias))
+			}
+		}
+	}
+	
+	return readline.NewPrefixCompleter(items...)
 }
 
 // listEntityIDs returns a function that lists all entity IDs for autocompletion
@@ -180,82 +190,30 @@ func (c *CLI) processInput(ctx context.Context, input string) error {
 	return c.handleNaturalQuery(ctx, input)
 }
 
-// processCommand handles slash commands
+// processCommand handles slash commands using the registry
 func (c *CLI) processCommand(ctx context.Context, input string) error {
 	parts := strings.Fields(input)
 	if len(parts) == 0 {
 		return nil
 	}
 
-	command := strings.ToLower(parts[0])
+	commandName := strings.ToLower(parts[0])
 	args := parts[1:]
 
-	switch command {
-	case "/help", "/h", "/?":
-		c.showHelp()
-	case "/ingest":
-		if len(args) < 1 {
-			return fmt.Errorf("usage: /ingest <url> [--force]")
-		}
-		force := false
-		url := args[0]
-		if len(args) > 1 && args[1] == "--force" {
-			force = true
-		}
-		return c.ingestSourceWithForce(ctx, url, force)
-	case "/show", "/view":
-		if len(args) < 1 {
-			return fmt.Errorf("usage: /show <entity-id>")
-		}
-		return c.showEntity(strings.Join(args, " "))
-	case "/search", "/find":
-		if len(args) < 1 {
-			return fmt.Errorf("usage: /search <query>")
-		}
-		return c.searchEntities(strings.Join(args, " "))
-	case "/queue", "/q":
+	// Special case for /explore queue
+	if commandName == "/explore" && len(args) > 0 && args[0] == "queue" {
 		return c.InteractiveQueueExplorer(ctx)
-	case "/related", "/connections":
-		if len(args) < 1 {
-			return fmt.Errorf("usage: /related <entity-id>")
-		}
-		return c.showRelated(strings.Join(args, " "))
-	case "/create":
-		if len(args) < 2 {
-			return fmt.Errorf("usage: /create <type> <id>")
-		}
-		return c.createEntity(args[0], strings.Join(args[1:], " "))
-	case "/link", "/connect":
-		if len(args) < 3 {
-			return fmt.Errorf("usage: /link <source-id> <rel-type> <target-id>")
-		}
-		return c.createLink(args[0], args[1], args[2])
-	case "/merge":
-		if len(args) < 2 {
-			return fmt.Errorf("usage: /merge <entity1-id> <entity2-id>")
-		}
-		return c.mergeEntities(ctx, args[0], args[1])
-	case "/rename":
-		if len(args) < 2 {
-			return fmt.Errorf("usage: /rename <old-id> <new-id>")
-		}
-		return c.renameEntity(args[0], args[1])
-	case "/move":
-		if len(args) < 2 {
-			return fmt.Errorf("usage: /move <old-id> <new-id>")
-		}
-		return c.moveEntity(args[0], args[1])
-	case "/clear":
-		fmt.Print("\033[H\033[2J") // Clear screen
-	case "/rebuild-refs":
-		// Rebuild all back-references
-		fmt.Println("Rebuilding all back-references in the graph...")
-		if err := c.graph.RebuildAllBackReferences(); err != nil {
-			return fmt.Errorf("failed to rebuild references: %w", err)
-		}
-		fmt.Println(SuccessStyle.Render("✓ Back-references rebuilt successfully"))
-	default:
-		return fmt.Errorf("unknown command: %s (type /help for commands)", command)
+	}
+
+	// Look up command in registry
+	cmd, ok := c.registry.Get(commandName)
+	if !ok {
+		return fmt.Errorf("unknown command: %s (type /help for commands)", commandName)
+	}
+
+	// Execute command handler if it exists
+	if cmd.Handler != nil {
+		return cmd.Handler(ctx, c, args)
 	}
 
 	return nil
@@ -263,21 +221,43 @@ func (c *CLI) processCommand(ctx context.Context, input string) error {
 
 // showHelp displays available commands
 func (c *CLI) showHelp() {
+	c.showHelpFromRegistry()
+}
+
+// showHelpFromRegistry displays help text generated from the command registry
+func (c *CLI) showHelpFromRegistry() {
 	fmt.Println("\nAvailable Commands:")
-	fmt.Println("  /help                      - Show this help message")
-	fmt.Println("  /ingest <url> [--force]    - Ingest a source (--force to re-process)")
-	fmt.Println("  /show <entity-id>          - Display an entity (tab for autocomplete)")
-	fmt.Println("  /search <query>            - Search for entities")
-	fmt.Println("  /queue, /q                 - Manage pending sources")
-	fmt.Println("  /related <entity-id>       - Show related entities (tab for autocomplete)")
-	fmt.Println("  /create <type> <id>        - Create new entity")
-	fmt.Println("  /link <from> <type> <to>   - Create relationship")
-	fmt.Println("  /merge <id1> <id2>         - Merge entity2 into entity1")
-	fmt.Println("  /rename <old-id> <new-id>  - Rename entity and update references")
-	fmt.Println("  /move <old-id> <new-id>    - Move entity (allows type change)")
-	fmt.Println("  /rebuild-refs              - Rebuild all back-references")
-	fmt.Println("  /clear                     - Clear screen")
-	fmt.Println("  /exit, /quit, /q           - Exit the program")
+	
+	// Calculate max width for formatting
+	maxWidth := 0
+	for _, cmd := range c.registry.GetAll() {
+		usageStr := cmd.Name
+		if cmd.Usage != "" {
+			usageStr += " " + cmd.Usage
+		}
+		if len(usageStr) > maxWidth {
+			maxWidth = len(usageStr)
+		}
+	}
+	
+	// Display commands
+	for _, cmd := range c.registry.GetAll() {
+		usageStr := cmd.Name
+		if cmd.Usage != "" {
+			usageStr += " " + cmd.Usage
+		}
+		
+		// Add aliases to description if present
+		desc := cmd.Description
+		if len(cmd.Aliases) > 0 {
+			desc = fmt.Sprintf("%s (aliases: %s)", desc, strings.Join(cmd.Aliases, ", "))
+		}
+		
+		// Format with padding
+		padding := maxWidth - len(usageStr) + 3
+		fmt.Printf("  %s%s- %s\n", usageStr, strings.Repeat(" ", padding), desc)
+	}
+	
 	fmt.Println("\nTips:")
 	fmt.Println("  • Use Tab for command and entity ID autocompletion")
 	fmt.Println("  • Use ↑/↓ arrows to navigate command history")
