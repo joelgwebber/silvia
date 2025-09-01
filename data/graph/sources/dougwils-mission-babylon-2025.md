@@ -19,7 +19,7 @@ Christ Church Moscow and the CREC are planting a church in Washington, DC, using
 1. **Nehemiah Model**: Rebuilding the walls of a ruined Jerusalem - representing the task of rebuilding Christendom
 2. **Daniel/Babylon Model**: Bringing Babylon into the New Jerusalem - transforming the imperial capital from within
 
-Wilson notes "mission to Babylon" has "a nice ring" and both Nehemiah and Daniel were faithful men.
+Wilson notes "mission to Babylon" has "a nice ring" and both [[people/nehemiah]] and [[people/daniel]] were faithful men.
 
 ## Implementation Details
 

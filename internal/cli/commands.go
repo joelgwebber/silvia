@@ -137,6 +137,14 @@ func (r *CommandRegistry) registerAllCommands() {
 			Handler:     handleRebuildRefs,
 		},
 		{
+			Name:        "/refine",
+			Aliases:     []string{},
+			Description: "Refine entity using sources and LLM",
+			Usage:       "<entity-id> [guidance]",
+			Handler:     handleRefine,
+			Dynamic:     true,
+		},
+		{
 			Name:        "/clear",
 			Aliases:     []string{},
 			Description: "Clear screen",
@@ -273,6 +281,18 @@ func handleRebuildRefs(ctx context.Context, c *CLI, args []string) error {
 	}
 	fmt.Println(SuccessStyle.Render("✓ Back-references rebuilt successfully"))
 	return nil
+}
+
+func handleRefine(ctx context.Context, c *CLI, args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: /refine <entity-id> [guidance]")
+	}
+	entityID := args[0]
+	guidance := ""
+	if len(args) > 1 {
+		guidance = strings.Join(args[1:], " ")
+	}
+	return c.refineEntity(ctx, entityID, guidance)
 }
 
 func handleClear(ctx context.Context, c *CLI, args []string) error {

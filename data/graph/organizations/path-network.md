@@ -2,7 +2,7 @@
 id: organizations/path-network
 type: organization
 created: 2025-08-29T22:17:04.050459-04:00
-updated: 2025-08-30T13:46:43.544099-04:00
+updated: 2025-09-01T17:04:00.940285-04:00
 sources:
     - sources/www-wired-com-2025-08-29
 ---
@@ -22,4 +22,5 @@ Path Network is a network monitoring firm where Edward Coristine briefly worked 
 ## Back-references
 <!-- Auto-maintained by the system -->
 - [[sources/www-wired-com-2025-08-29]] (mentioned_in)
+- [[people/edward-coristine]] (mentioned_in)
 
