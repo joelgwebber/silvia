@@ -11,13 +11,13 @@ type CommandHandler func(ctx context.Context, c *CLI, args []string) error
 
 // Command represents a CLI command with all its metadata
 type Command struct {
-	Name        string          // Primary command name (e.g., "/help")
-	Aliases     []string        // Alternative names (e.g., ["/h", "/?"])
-	Description string          // Help text description
-	Usage       string          // Usage pattern (e.g., "<entity-id>")
-	Handler     CommandHandler  // Function to execute the command
-	SubCommands []string        // For auto-completion of sub-commands (e.g., entity types)
-	Dynamic     bool            // Whether this command uses dynamic completion (entity IDs)
+	Name        string         // Primary command name (e.g., "/help")
+	Aliases     []string       // Alternative names (e.g., ["/h", "/?"])
+	Description string         // Help text description
+	Usage       string         // Usage pattern (e.g., "<entity-id>")
+	Handler     CommandHandler // Function to execute the command
+	SubCommands []string       // For auto-completion of sub-commands (e.g., entity types)
+	Dynamic     bool           // Whether this command uses dynamic completion (entity IDs)
 }
 
 // CommandRegistry holds all command definitions
@@ -169,7 +169,7 @@ func (r *CommandRegistry) register(cmd *Command) {
 	// Register primary name
 	r.commands[cmd.Name] = cmd
 	r.ordered = append(r.ordered, cmd)
-	
+
 	// Register aliases
 	for _, alias := range cmd.Aliases {
 		r.commands[alias] = cmd

@@ -4,7 +4,7 @@ type: person
 aliases:
     - Trump
 created: 2025-08-23T23:56:33.025886-04:00
-updated: 2025-09-01T17:02:13.989725-04:00
+updated: 2025-09-01T19:10:04.782153-04:00
 sources:
     - sources/politico-wilson-new-right-2025
     - sources/www-dailykos-com-2025-08-29
@@ -20,4 +20,6 @@ During Trump's tenure, individuals like Edward Coristine and Luke Farritor, who 
 <!-- Auto-maintained by the system -->
 - [[sources/politico-wilson-new-right-2025]] (mentioned_in)
 - [[sources/www-dailykos-com-2025-08-29]] (mentioned_in)
+- [[people/elon-musk]] (mentioned_in)
+- [[people/joe-gebbia]] (mentioned_in)
 

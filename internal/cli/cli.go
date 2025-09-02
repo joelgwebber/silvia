@@ -117,17 +117,17 @@ func (c *CLI) Run(ctx context.Context) error {
 func (c *CLI) buildAutoCompleter() *readline.PrefixCompleter {
 	var items []readline.PrefixCompleterInterface
 	processed := make(map[string]bool)
-	
+
 	for _, cmd := range c.registry.GetAll() {
 		// Skip if we've already processed this command (aliases handled separately)
 		if processed[cmd.Name] {
 			continue
 		}
 		processed[cmd.Name] = true
-		
+
 		// Create completion item
 		var item readline.PrefixCompleterInterface
-		
+
 		if cmd.Dynamic {
 			// Commands with dynamic entity ID completion
 			item = readline.PcItem(cmd.Name, readline.PcItemDynamic(c.listEntityIDs()))
@@ -143,7 +143,7 @@ func (c *CLI) buildAutoCompleter() *readline.PrefixCompleter {
 			item = readline.PcItem(cmd.Name)
 		}
 		items = append(items, item)
-		
+
 		// Add aliases as separate items
 		for _, alias := range cmd.Aliases {
 			if cmd.Dynamic {
@@ -159,7 +159,7 @@ func (c *CLI) buildAutoCompleter() *readline.PrefixCompleter {
 			}
 		}
 	}
-	
+
 	return readline.NewPrefixCompleter(items...)
 }
 
@@ -227,7 +227,7 @@ func (c *CLI) showHelp() {
 // showHelpFromRegistry displays help text generated from the command registry
 func (c *CLI) showHelpFromRegistry() {
 	fmt.Println("\nAvailable Commands:")
-	
+
 	// Calculate max width for formatting
 	maxWidth := 0
 	for _, cmd := range c.registry.GetAll() {
@@ -239,25 +239,25 @@ func (c *CLI) showHelpFromRegistry() {
 			maxWidth = len(usageStr)
 		}
 	}
-	
+
 	// Display commands
 	for _, cmd := range c.registry.GetAll() {
 		usageStr := cmd.Name
 		if cmd.Usage != "" {
 			usageStr += " " + cmd.Usage
 		}
-		
+
 		// Add aliases to description if present
 		desc := cmd.Description
 		if len(cmd.Aliases) > 0 {
 			desc = fmt.Sprintf("%s (aliases: %s)", desc, strings.Join(cmd.Aliases, ", "))
 		}
-		
+
 		// Format with padding
 		padding := maxWidth - len(usageStr) + 3
 		fmt.Printf("  %s%s- %s\n", usageStr, strings.Repeat(" ", padding), desc)
 	}
-	
+
 	fmt.Println("\nTips:")
 	fmt.Println("  • Use Tab for command and entity ID autocompletion")
 	fmt.Println("  • Use ↑/↓ arrows to navigate command history")

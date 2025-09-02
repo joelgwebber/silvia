@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"silvia/internal/graph"
 	"silvia/internal/llm"
+	"silvia/internal/prompts"
 )
 
 // ExtractedEntity represents an entity found in text
@@ -272,36 +274,38 @@ func (e *Extractor) Extract(ctx context.Context, source *Source) (*ExtractionRes
 
 IMPORTANT: You will be provided with a list of links found in the article. Review these links and include the most relevant ones in your response.
 
+` + prompts.GetCitationGuidelines() + `
+
 For EACH entity, provide:
 - A brief one-line description
-- Rich markdown content with relevant sections like:
-  - Overview paragraph with context and significance
+- Rich markdown content with proper source attribution that includes:
+  - Overview paragraph with context and significance (citing sources)
   - Key Activities, Key Themes, or relevant section headers
-  - Important quotes if applicable
+  - Important quotes with their sources identified
   - Relationships to other entities using [[type/name]] wiki-link format
   
 For events specifically, structure the content with:
-- Opening paragraph describing the event
-- **Date**: When it occurred
+- Opening paragraph describing the event with concise source attribution
+- **Date**: When it occurred with citation if specific
 - **Location**: Where it took place
 - **Participants**: List of people/organizations involved with [[type/name]] links
-- **Significance**: Why this event matters
+- **Significance**: Why this event matters with source
 - **Context**: Background and related events
-- **Outcomes**: What resulted from this event
+- **Outcomes**: What resulted from this event with attribution
 
 For organizations, include:
-- **Leadership**: Key people with [[people/name]] links
-- **Mission/Purpose**: What the organization does
-- **Key Activities**: Major initiatives or functions
+- **Leadership**: Key people with [[people/name]] links and source attribution
+- **Mission/Purpose**: What the organization does with citation
+- **Key Activities**: Major initiatives or functions with source reference
 - **Connections**: Related organizations and movements
 
 For people, include:
-- **Role/Position**: Their title or significance
-- **Key Activities**: What they've done relevant to the article
+- **Role/Position**: Their title or significance with citation
+- **Key Activities**: What they've done relevant to the article with attribution
 - **Affiliations**: Organizations they're connected to with [[organizations/name]] links
-- **Notable Statements**: Important quotes if any
+- **Notable Statements**: Important quotes with source identified
 
-Be comprehensive but focused - extract ALL the relevant information about each entity from the article.
+IMPORTANT: Use direct, concise citations. Instead of "According to an article by X in Y", write "X (Y, date) states..." or similar. Keep citations brief but complete.
 
 For links provided in the source, evaluate each one and:
 - Include links that could provide valuable context or additional information
@@ -342,7 +346,7 @@ Output JSON with this structure:
   ]
 }
 
-Create rich, interconnected entities that capture the full context and significance from the article.`
+Create rich, interconnected entities that capture the full context and significance from the article, with proper source attribution for all claims.`
 
 	// Include the links in the prompt so the LLM can analyze them
 	linksSection := ""
@@ -363,8 +367,25 @@ Create rich, interconnected entities that capture the full context and significa
 		fmt.Printf("[DEBUG] No links to include in LLM prompt\n")
 	}
 
-	userPrompt := fmt.Sprintf("Analyze this content:\n\nTitle: %s\nSource URL: %s\n\nContent:\n%s%s",
-		source.Title, source.URL, source.Content, linksSection)
+	// Build source metadata string
+	sourceInfo := fmt.Sprintf("Title: %s\nSource URL: %s", source.Title, source.URL)
+
+	// Generate the source entity ID that will be created
+	sourceEntityID := e.generateSourceEntityID(source.URL)
+	sourceInfo += fmt.Sprintf("\nSource Entity ID: [[%s]]", sourceEntityID)
+
+	if author, ok := source.Metadata["author"]; ok && author != "" {
+		sourceInfo += fmt.Sprintf("\nAuthor: %s", author)
+	}
+	if date, ok := source.Metadata["date"]; ok && date != "" {
+		sourceInfo += fmt.Sprintf("\nPublication Date: %s", date)
+	}
+	if publication, ok := source.Metadata["publication"]; ok && publication != "" {
+		sourceInfo += fmt.Sprintf("\nPublication: %s", publication)
+	}
+
+	userPrompt := fmt.Sprintf("Analyze this content:\n\n%s\n\nIMPORTANT: When citing this source, use the wiki-link format [[%s]] rather than verbose inline citations.\n\nContent:\n%s%s",
+		sourceInfo, sourceEntityID, source.Content, linksSection)
 
 	// Limit content length for API
 	if len(userPrompt) > 10000 {
@@ -585,6 +606,19 @@ func (e *Extractor) makeAbsoluteURL(link, baseURL string) string {
 
 	// Resolve relative to base
 	return base.ResolveReference(rel).String()
+}
+
+// generateSourceEntityID creates a consistent source entity ID from a URL
+func (e *Extractor) generateSourceEntityID(sourceURL string) string {
+	u, err := url.Parse(sourceURL)
+	if err != nil {
+		// Fallback to simple domain extraction
+		return fmt.Sprintf("sources/source-%s", time.Now().Format("2006-01-02"))
+	}
+
+	// Create ID like "sources/domain-date"
+	domain := strings.ReplaceAll(u.Hostname(), ".", "-")
+	return fmt.Sprintf("sources/%s-%s", domain, time.Now().Format("2006-01-02"))
 }
 
 // parseEntityType converts string to EntityType

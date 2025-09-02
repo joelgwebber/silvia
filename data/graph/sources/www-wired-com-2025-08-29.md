@@ -2,7 +2,7 @@
 id: sources/www-wired-com-2025-08-29
 type: work
 created: 2025-08-29T22:17:04.046994-04:00
-updated: 2025-08-30T13:46:43.532747-04:00
+updated: 2025-09-01T19:11:45.231006-04:00
 sources:
     - https://www.wired.com/story/edward-coristine-tesla-sexy-path-networks-doge/
 ---
@@ -47,7 +47,7 @@ The WIRED article delves into the intriguing case of Edward Coristine, a 19-year
 
 ## Back-references
 <!-- Auto-maintained by the system -->
-- [[organizations/department-of-government-efficiency-doge]] (sourced_from)
+- [[organizations/department-of-government-efficiency]] (sourced_from)
 - [[organizations/general-services-administration-gsa]] (sourced_from)
 - [[organizations/path-network]] (sourced_from)
 - [[organizations/tesla-sexy-llc]] (sourced_from)

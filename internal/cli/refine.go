@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"silvia/internal/graph"
+	"silvia/internal/prompts"
 )
 
 // refineEntity uses the LLM to enhance an entity based on its sources
@@ -111,7 +112,7 @@ func (c *CLI) gatherSourceContent(entity *graph.Entity) (string, error) {
 	for _, sourceRef := range entity.Metadata.Sources {
 		// Try to load as an entity first (for source summaries)
 		if sourceEntity, err := c.graph.LoadEntity(sourceRef); err == nil {
-			content.WriteString(fmt.Sprintf("\n=== Source: %s ===\n", sourceEntity.Title))
+			content.WriteString(fmt.Sprintf("\n=== Source: %s (ID: [[%s]]) ===\n", sourceEntity.Title, sourceRef))
 			content.WriteString(sourceEntity.Content)
 			content.WriteString("\n")
 			continue
@@ -133,7 +134,7 @@ func (c *CLI) gatherSourceContent(entity *graph.Entity) (string, error) {
 				// Check if we already included this source
 				alreadyIncluded := slices.Contains(entity.Metadata.Sources, backRef.Source)
 				if !alreadyIncluded {
-					content.WriteString(fmt.Sprintf("\n=== Source (via back-ref): %s ===\n", sourceEntity.Title))
+					content.WriteString(fmt.Sprintf("\n=== Source (via back-ref): %s (ID: [[%s]]) ===\n", sourceEntity.Title, backRef.Source))
 					content.WriteString(sourceEntity.Content)
 					content.WriteString("\n")
 				}
@@ -310,16 +311,15 @@ func (c *CLI) buildRefinementPrompt(entity *graph.Entity, sourceContent string, 
 		prompt.WriteString("\n\n")
 	}
 
+	prompt.WriteString(prompts.GetCitationGuidelines())
+	prompt.WriteString("\n")
+
 	prompt.WriteString("TASK:\n")
-	prompt.WriteString("Create an enhanced version of this entity that:\n")
-	prompt.WriteString("1. Incorporates relevant details from the sources\n")
-	prompt.WriteString("2. Maintains factual accuracy\n")
-	prompt.WriteString("3. Provides more context and background\n")
-	prompt.WriteString("4. Keeps a neutral, encyclopedic tone\n")
-	prompt.WriteString("5. Preserves any existing relationships or cross-references\n")
+	prompt.WriteString("Create an enhanced version of this entity that follows these standards:\n")
+	prompt.WriteString(prompts.GetEntityContentGuidelines())
 
 	if guidance != "" {
-		prompt.WriteString("6. Addresses the specific guidance provided\n")
+		prompt.WriteString("7. Addresses the specific guidance provided\n")
 	}
 
 	prompt.WriteString("\nReturn ONLY the refined content in markdown format, without any preamble or explanation.")
@@ -418,4 +418,3 @@ func (c *CLI) displayEntityDiff(oldEntity, newEntity *graph.Entity) error {
 
 	return nil
 }
-

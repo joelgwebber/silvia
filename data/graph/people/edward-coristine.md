@@ -2,7 +2,7 @@
 id: people/edward-coristine
 type: person
 created: 2025-08-29T22:09:45.605207-04:00
-updated: 2025-09-01T17:04:00.935968-04:00
+updated: 2025-09-01T19:10:04.782652-04:00
 sources:
     - sources/www-dailykos-com-2025-08-29
     - sources/www-wired-com-2025-08-29
@@ -40,4 +40,6 @@ Coristine, known as 'Big Balls,' has a history of establishing multiple companie
 - [[sources/www-dailykos-com-2025-08-29]] (mentioned_in)
 - [[sources/www-wired-com-2025-08-29]] (mentioned_in)
 - [[people/edward-coristine]] (mentioned_in)
+- [[people/elon-musk]] (mentioned_in)
+- [[people/joe-gebbia]] (mentioned_in)
 

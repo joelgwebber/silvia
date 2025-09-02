@@ -121,16 +121,34 @@ func (w *WebFetcher) Fetch(ctx context.Context, sourceURL string) (*Source, erro
 	// Extract links
 	links := extractHTMLLinks(html)
 
+	// Extract metadata
+	metadata := map[string]string{
+		"fetched_at": time.Now().Format(time.RFC3339),
+		"domain":     ExtractDomain(sourceURL),
+	}
+
+	// Extract author if available
+	if author := extractAuthor(html); author != "" {
+		metadata["author"] = author
+	}
+
+	// Extract publication date if available
+	if pubDate := extractPublicationDate(html); pubDate != "" {
+		metadata["date"] = pubDate
+	}
+
+	// Extract publication/site name if available
+	if publication := extractPublication(html); publication != "" {
+		metadata["publication"] = publication
+	}
+
 	source := &Source{
 		URL:        sourceURL,
 		Title:      title,
 		Content:    markdown,
 		RawContent: html,
 		Links:      links,
-		Metadata: map[string]string{
-			"fetched_at": time.Now().Format(time.RFC3339),
-			"domain":     ExtractDomain(sourceURL),
-		},
+		Metadata:   metadata,
 	}
 
 	return source, nil
@@ -386,17 +404,33 @@ func (w *WebFetcher) FetchFromClipboard(sourceURL string) (*Source, error) {
 		}
 	}
 
+	// Extract metadata
+	metadata := map[string]string{
+		"fetched_at":     time.Now().Format(time.RFC3339),
+		"domain":         ExtractDomain(sourceURL),
+		"capture_method": "clipboard",
+	}
+
+	// Try to extract metadata from content if it looks like HTML
+	if strings.Contains(content, "<") && strings.Contains(content, ">") {
+		if author := extractAuthor(content); author != "" {
+			metadata["author"] = author
+		}
+		if pubDate := extractPublicationDate(content); pubDate != "" {
+			metadata["date"] = pubDate
+		}
+		if publication := extractPublication(content); publication != "" {
+			metadata["publication"] = publication
+		}
+	}
+
 	source := &Source{
 		URL:        sourceURL,
 		Title:      title,
 		Content:    markdown,
 		RawContent: content,
 		Links:      links,
-		Metadata: map[string]string{
-			"fetched_at":     time.Now().Format(time.RFC3339),
-			"domain":         ExtractDomain(sourceURL),
-			"capture_method": "clipboard",
-		},
+		Metadata:   metadata,
 	}
 
 	return source, nil
@@ -418,4 +452,84 @@ func OpenInBrowser(url string) error {
 	}
 
 	return cmd.Start()
+}
+
+// extractAuthor attempts to extract the author from HTML metadata
+func extractAuthor(html string) string {
+	// Try various meta tags for author
+	patterns := []string{
+		`(?i)<meta\s+name="author"\s+content="([^"]+)"`,
+		`(?i)<meta\s+property="article:author"\s+content="([^"]+)"`,
+		`(?i)<meta\s+name="byl"\s+content="([^"]+)"`,
+		`(?i)<meta\s+name="DC\.Creator"\s+content="([^"]+)"`,
+		`(?i)<span[^>]*class="[^"]*author[^"]*"[^>]*>([^<]+)</span>`,
+		`(?i)<div[^>]*class="[^"]*byline[^"]*"[^>]*>(?:By\s+)?([^<]+)</div>`,
+	}
+
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		if matches := re.FindStringSubmatch(html); len(matches) > 1 {
+			author := strings.TrimSpace(matches[1])
+			// Clean up common prefixes
+			author = strings.TrimPrefix(author, "By ")
+			author = strings.TrimPrefix(author, "by ")
+			return author
+		}
+	}
+
+	return ""
+}
+
+// extractPublicationDate attempts to extract the publication date from HTML metadata
+func extractPublicationDate(html string) string {
+	// Try various meta tags for publication date
+	patterns := []string{
+		`(?i)<meta\s+property="article:published_time"\s+content="([^"]+)"`,
+		`(?i)<meta\s+name="publish_date"\s+content="([^"]+)"`,
+		`(?i)<meta\s+name="DC\.Date"\s+content="([^"]+)"`,
+		`(?i)<time[^>]*datetime="([^"]+)"`,
+		`(?i)<meta\s+property="datePublished"\s+content="([^"]+)"`,
+		`(?i)<meta\s+name="publication_date"\s+content="([^"]+)"`,
+	}
+
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		if matches := re.FindStringSubmatch(html); len(matches) > 1 {
+			dateStr := strings.TrimSpace(matches[1])
+			// Try to parse and format the date consistently
+			if t, err := time.Parse(time.RFC3339, dateStr); err == nil {
+				return t.Format("January 2006")
+			} else if t, err := time.Parse("2006-01-02", dateStr); err == nil {
+				return t.Format("January 2006")
+			}
+			// Return as-is if we can't parse it
+			return dateStr
+		}
+	}
+
+	return ""
+}
+
+// extractPublication attempts to extract the publication/site name from HTML metadata
+func extractPublication(html string) string {
+	// Try various meta tags for publication
+	patterns := []string{
+		`(?i)<meta\s+property="og:site_name"\s+content="([^"]+)"`,
+		`(?i)<meta\s+name="publisher"\s+content="([^"]+)"`,
+		`(?i)<meta\s+property="article:publisher"\s+content="([^"]+)"`,
+		`(?i)<meta\s+name="DC\.Publisher"\s+content="([^"]+)"`,
+		`(?i)<meta\s+name="twitter:site"\s+content="([^"]+)"`,
+	}
+
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		if matches := re.FindStringSubmatch(html); len(matches) > 1 {
+			pub := strings.TrimSpace(matches[1])
+			// Clean up Twitter handles
+			pub = strings.TrimPrefix(pub, "@")
+			return pub
+		}
+	}
+
+	return ""
 }

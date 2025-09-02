@@ -72,10 +72,10 @@ func ExtractLinks(content string) []string {
 
 	// Simple regex-based extraction (can be improved)
 	// Looking for http(s) URLs
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		words := strings.Fields(line)
-		for _, word := range words {
+	lines := strings.SplitSeq(content, "\n")
+	for line := range lines {
+		words := strings.FieldsSeq(line)
+		for word := range words {
 			if strings.HasPrefix(word, "http://") || strings.HasPrefix(word, "https://") {
 				// Clean up common trailing punctuation
 				word = strings.TrimSuffix(word, ".")
