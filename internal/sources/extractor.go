@@ -315,7 +315,7 @@ For links provided in the source, evaluate each one and:
 - You can include up to 20 of the most relevant links
 - Prioritize reference and discussion links over navigation/ads
 
-Output JSON with this structure:
+You MUST output valid JSON and nothing else. Output JSON with this structure:
 {
   "entities": [
     {
@@ -392,48 +392,10 @@ Create rich, interconnected entities that capture the full context and significa
 		userPrompt = userPrompt[:10000] + "\n[content truncated]"
 	}
 
-	response, err := e.llm.CompleteWithSystem(ctx, systemPrompt, userPrompt, "")
-	if err != nil {
+	// Use structured output for type-safe JSON responses
+	var llmResult LLMExtractionResult
+	if err := e.llm.CompleteWithStructuredOutput(ctx, systemPrompt, userPrompt, &llmResult, ""); err != nil {
 		return nil, fmt.Errorf("LLM extraction failed: %w", err)
-	}
-
-	// Parse JSON response
-	var llmResult struct {
-		Entities []struct {
-			Name        string   `json:"name"`
-			Type        string   `json:"type"`
-			Description string   `json:"description"`
-			Content     string   `json:"content"`
-			Aliases     []string `json:"aliases"`
-			WikiLinks   []string `json:"wiki_links"`
-		} `json:"entities"`
-		Relationships []struct {
-			Source string `json:"source"`
-			Target string `json:"target"`
-			Type   string `json:"type"`
-			Note   string `json:"note"`
-		} `json:"relationships"`
-		Links []struct {
-			URL         string `json:"url"`
-			Title       string `json:"title"`
-			Description string `json:"description"`
-			Relevance   string `json:"relevance"`
-			Category    string `json:"category"`
-		} `json:"links"`
-	}
-
-	if err := json.Unmarshal([]byte(response), &llmResult); err != nil {
-		// Try to extract JSON from response if it's wrapped in text
-		jsonStart := strings.Index(response, "{")
-		jsonEnd := strings.LastIndex(response, "}")
-		if jsonStart >= 0 && jsonEnd > jsonStart {
-			jsonStr := response[jsonStart : jsonEnd+1]
-			if err := json.Unmarshal([]byte(jsonStr), &llmResult); err != nil {
-				return nil, fmt.Errorf("failed to parse LLM response: %w", err)
-			}
-		} else {
-			return nil, fmt.Errorf("failed to parse LLM response: %w", err)
-		}
 	}
 
 	if e.debug {

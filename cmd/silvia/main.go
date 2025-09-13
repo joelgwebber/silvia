@@ -14,6 +14,7 @@ import (
 	"silvia/internal/cli"
 	"silvia/internal/graph"
 	"silvia/internal/llm"
+	"silvia/internal/mcp"
 	"silvia/internal/server"
 )
 
@@ -28,6 +29,7 @@ func main() {
 		serverToken   string
 		noServer      bool
 		debug         bool
+		mcpMode       bool
 	)
 
 	flag.BoolVar(&help, "help", false, "Show help message")
@@ -40,6 +42,7 @@ func main() {
 	flag.StringVar(&serverToken, "token", os.Getenv("SILVIA_TOKEN"), "Optional auth token for extension API (can also use SILVIA_TOKEN env var)")
 	flag.BoolVar(&noServer, "no-server", false, "Disable the extension API server")
 	flag.BoolVar(&debug, "debug", false, "Enable debug output for troubleshooting")
+	flag.BoolVar(&mcpMode, "mcp", false, "Run as MCP server for AI assistants (requires stdio connection)")
 	flag.Parse()
 
 	if help {
@@ -56,7 +59,20 @@ func main() {
 		fmt.Println("  BSKY_PASSWORD        Bluesky app password")
 		fmt.Println("  OPENROUTER_API_KEY   OpenRouter API key")
 		fmt.Println("  SILVIA_TOKEN         Optional auth token for extension API")
+		fmt.Println()
+		fmt.Println("MCP Server Mode:")
+		fmt.Println("  Run with -mcp flag to start as an MCP server for AI assistants.")
+		fmt.Println("  This mode requires stdin/stdout to be connected (not a terminal).")
+		fmt.Println("  Example: silvia -mcp < /dev/null")
 		os.Exit(0)
+	}
+
+	// If MCP mode is requested, run as MCP server
+	if mcpMode {
+		if err := mcp.RunMCPServer(); err != nil {
+			log.Fatalf("MCP server error: %v", err)
+		}
+		return
 	}
 
 	// Initialize graph manager

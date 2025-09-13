@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "silvia": {
+      "command": "/Users/joel/src/silvia/bin/silvia",
+      "args": ["-mcp"],
+      "env": {
+        "SILVIA_DATA_DIR": "/Users/joel/src/silvia/data"
+      }
+    }
+  }
+}

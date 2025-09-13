@@ -227,6 +227,12 @@ func (m *queueExplorerModel) updateItemDisplay(idx int) {
 
 // InteractiveQueueExplorer shows an interactive interface for managing the queue
 func (c *CLI) InteractiveQueueExplorer(ctx context.Context) error {
+	// Signal entering interactive mode
+	if c.termWriter != nil {
+		c.termWriter.EnterInteractive("queue_explorer")
+		defer c.termWriter.ExitInteractive()
+	}
+
 	queueItems := c.queue.GetAll()
 	if len(queueItems) == 0 {
 		fmt.Println(DimStyle.Render("Queue is empty."))

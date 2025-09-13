@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -284,15 +285,6 @@ func (m *Manager) GetRelatedEntities(entityID string) (*RelatedEntitiesResult, e
 	return result, nil
 }
 
-// GetRelatedEntitiesSimple returns a simple list of related entities (for backward compatibility)
-func (m *Manager) GetRelatedEntitiesSimple(entityID string) ([]*Entity, error) {
-	result, err := m.GetRelatedEntities(entityID)
-	if err != nil {
-		return nil, err
-	}
-	return result.All, nil
-}
-
 // updateBackReferences updates back-references in entities that this entity points to
 func (m *Manager) updateBackReferences(entity *Entity) error {
 	// Get all outgoing links from this entity
@@ -337,14 +329,6 @@ func (m *Manager) updateBackReferences(entity *Entity) error {
 	// Note: We're not removing old back-references for now since we'd need to track
 	// what changed. This could be added later with a more sophisticated diff system.
 
-	return nil
-}
-
-// removeOldBackReferences removes back-references that are no longer valid
-func (m *Manager) removeOldBackReferences(entity *Entity) error {
-	// This would need to track previous state to know what to remove
-	// For now, we'll implement a simpler version that recalculates all back-refs
-	// In production, we'd want to track the diff between old and new relationships
 	return nil
 }
 
@@ -662,13 +646,7 @@ func (m *Manager) RenameEntity(oldID, newID string) error {
 	renamedEntity.Metadata.ID = newID
 
 	// Add the old ID as an alias if not already present
-	hasOldIDAsAlias := false
-	for _, alias := range renamedEntity.Metadata.Aliases {
-		if alias == oldID {
-			hasOldIDAsAlias = true
-			break
-		}
-	}
+	hasOldIDAsAlias := slices.Contains(renamedEntity.Metadata.Aliases, oldID)
 	if !hasOldIDAsAlias {
 		renamedEntity.Metadata.Aliases = append(renamedEntity.Metadata.Aliases, oldID)
 	}
@@ -807,13 +785,7 @@ func (m *Manager) MoveEntity(oldID, newID string) error {
 	movedEntity.Metadata.Type = EntityType(newType)
 
 	// Add the old ID as an alias if not already present
-	hasOldIDAsAlias := false
-	for _, alias := range movedEntity.Metadata.Aliases {
-		if alias == oldID {
-			hasOldIDAsAlias = true
-			break
-		}
-	}
+	hasOldIDAsAlias := slices.Contains(movedEntity.Metadata.Aliases, oldID)
 	if !hasOldIDAsAlias {
 		movedEntity.Metadata.Aliases = append(movedEntity.Metadata.Aliases, oldID)
 	}

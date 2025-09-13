@@ -50,6 +50,16 @@ type BackReference struct {
 	Note   string `yaml:"note,omitempty"`
 }
 
+// IsValid checks if the entity type is valid
+func (t EntityType) IsValid() bool {
+	switch t {
+	case EntityPerson, EntityOrganization, EntityConcept, EntityWork, EntityEvent:
+		return true
+	default:
+		return false
+	}
+}
+
 // RelationshipType defines common relationship types
 type RelationshipType string
 

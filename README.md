@@ -1,5 +1,7 @@
 # Silvia
 
+![silvia header image](./silvia.jpg)
+
 A knowledge graph system for analyzing and connecting information from various sources.
 
 ## Quick Start

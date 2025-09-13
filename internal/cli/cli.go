@@ -14,34 +14,41 @@ import (
 	"silvia/internal/graph"
 	"silvia/internal/llm"
 	"silvia/internal/sources"
+	"silvia/internal/term"
+	"silvia/internal/tools"
 )
 
 // CLI provides the interactive command-line interface
 type CLI struct {
-	graph     *graph.Manager
-	llm       *llm.Client
-	queue     *SourceQueue
-	readline  *readline.Instance
-	sources   *sources.Manager
-	extractor *sources.Extractor
-	tracker   *SourceTracker
-	registry  *CommandRegistry
-	dataDir   string
-	debug     bool
+	graph      *graph.Manager
+	llm        *llm.Client
+	queue      *SourceQueue
+	readline   *readline.Instance
+	sources    *sources.Manager
+	extractor  *sources.Extractor
+	tracker    *SourceTracker
+	registry   *CommandRegistry
+	tools      *tools.Manager
+	termWriter *term.OSCWriter
+	dataDir    string
+	debug      bool
 }
 
 // NewCLI creates a new CLI instance
 func NewCLI(graphManager *graph.Manager, llmClient *llm.Client) *CLI {
 	dataDir := "data" // Default data directory
+	sourcesManager := sources.NewManager()
 	return &CLI{
-		graph:     graphManager,
-		llm:       llmClient,
-		queue:     NewSourceQueue(),
-		sources:   sources.NewManager(),
-		extractor: sources.NewExtractor(llmClient),
-		tracker:   NewSourceTracker(dataDir),
-		registry:  NewCommandRegistry(),
-		dataDir:   dataDir,
+		graph:      graphManager,
+		llm:        llmClient,
+		queue:      NewSourceQueue(),
+		sources:    sourcesManager,
+		extractor:  sources.NewExtractor(llmClient),
+		tracker:    NewSourceTracker(dataDir),
+		registry:   NewCommandRegistry(),
+		tools:      tools.NewManager(graphManager, llmClient, sourcesManager),
+		termWriter: term.NewOSCWriter(os.Stdout),
+		dataDir:    dataDir,
 	}
 }
 
@@ -55,6 +62,10 @@ func (c *CLI) SetDebug(debug bool) {
 	c.debug = debug
 	if c.extractor != nil {
 		c.extractor.SetDebug(debug)
+	}
+	// Enable verbose tool logging in debug mode
+	if c.tools != nil && debug {
+		c.tools.EnableVerboseLogging()
 	}
 }
 
@@ -219,11 +230,6 @@ func (c *CLI) processCommand(ctx context.Context, input string) error {
 	return nil
 }
 
-// showHelp displays available commands
-func (c *CLI) showHelp() {
-	c.showHelpFromRegistry()
-}
-
 // showHelpFromRegistry displays help text generated from the command registry
 func (c *CLI) showHelpFromRegistry() {
 	fmt.Println("\nAvailable Commands:")
@@ -267,24 +273,45 @@ func (c *CLI) showHelpFromRegistry() {
 
 // showEntity displays an entity's details
 func (c *CLI) showEntity(entityID string) error {
-	entity, err := c.graph.LoadEntity(entityID)
-	if err != nil {
+	// Try to read entity using tools
+	result, err := c.tools.Execute(context.Background(), "read_entity", map[string]any{
+		"id": entityID,
+	})
+
+	if err != nil || !result.Success {
 		// Try searching if exact ID doesn't match
-		matches, searchErr := c.graph.SearchEntities(entityID)
-		if searchErr != nil || len(matches) == 0 {
+		searchResult, searchErr := c.tools.Execute(context.Background(), "search_entities", map[string]any{
+			"query": entityID,
+		})
+
+		if searchErr != nil || !searchResult.Success {
+			return fmt.Errorf("entity not found: %v", err)
+		}
+
+		matches := searchResult.Data.([]map[string]any)
+		if len(matches) == 0 {
 			return fmt.Errorf("entity not found: %v", err)
 		}
 
 		if len(matches) == 1 {
-			entity = matches[0]
+			// Load the single match
+			entityID = matches[0]["id"].(string)
+			result, err = c.tools.Execute(context.Background(), "read_entity", map[string]any{
+				"id": entityID,
+			})
+			if err != nil || !result.Success {
+				return fmt.Errorf("failed to load entity: %v", err)
+			}
 		} else {
 			fmt.Println("Multiple matches found:")
 			for i, match := range matches {
-				fmt.Printf("%d. %s (%s)\n", i+1, match.Title, match.Metadata.ID)
+				fmt.Printf("%d. %s (%s)\n", i+1, match["title"], match["id"])
 			}
 			return nil
 		}
 	}
+
+	entity := result.Data.(*graph.Entity)
 
 	// Display entity
 	fmt.Printf("\n%s %s\n", getEntityIcon(entity.Metadata.Type), entity.Title)
@@ -329,10 +356,19 @@ func (c *CLI) showEntity(entityID string) error {
 
 // searchEntities searches for entities matching a query
 func (c *CLI) searchEntities(query string) error {
-	matches, err := c.graph.SearchEntities(query)
+	result, err := c.tools.Execute(context.Background(), "search_entities", map[string]any{
+		"query": query,
+	})
+
 	if err != nil {
 		return fmt.Errorf("search failed: %w", err)
 	}
+
+	if !result.Success {
+		return fmt.Errorf("search failed: %s", result.Error)
+	}
+
+	matches := result.Data.([]map[string]any)
 
 	if len(matches) == 0 {
 		fmt.Println("No entities found.")
@@ -340,14 +376,24 @@ func (c *CLI) searchEntities(query string) error {
 	}
 
 	fmt.Printf("\nFound %d entities:\n", len(matches))
-	for _, entity := range matches {
+	for _, match := range matches {
+		// Handle type conversion - could be string or EntityType
+		var entityType graph.EntityType
+		switch t := match["type"].(type) {
+		case string:
+			entityType = graph.EntityType(t)
+		case graph.EntityType:
+			entityType = t
+		default:
+			entityType = graph.EntityPerson // default
+		}
 		fmt.Printf("  %s %s (%s)\n",
-			getEntityIcon(entity.Metadata.Type),
-			entity.Title,
-			entity.Metadata.ID)
-		if entity.Content != "" {
-			// Show first line of content
-			lines := strings.Split(entity.Content, "\n")
+			getEntityIcon(entityType),
+			match["title"],
+			match["id"])
+		if excerpt, ok := match["excerpt"].(string); ok && excerpt != "" {
+			// Show excerpt (already truncated by tool)
+			lines := strings.Split(excerpt, "\n")
 			if len(lines) > 0 && lines[0] != "" {
 				preview := lines[0]
 				if len(preview) > 60 {
@@ -638,47 +684,244 @@ func (c *CLI) moveEntity(oldID, newID string) error {
 	return nil
 }
 
-// handleNaturalQuery processes natural language queries using the LLM
+// handleNaturalQuery processes natural language queries using tools and LLM
 func (c *CLI) handleNaturalQuery(ctx context.Context, query string) error {
 	fmt.Println("🔍 Analyzing your query...")
 
-	// First, search for relevant entities
-	// This is a simplified version - in production, we'd use the LLM to extract entity names
-	words := strings.Fields(query)
-	var relevantEntities []*graph.Entity
+	// Use the LLM to determine which tools to use
+	toolCalls, err := c.extractToolCallsForQuery(ctx, query)
+	if err != nil {
+		// Fallback to simple search if LLM fails
+		return c.fallbackSearch(query)
+	}
 
-	for _, word := range words {
-		if len(word) > 3 { // Skip short words
-			matches, err := c.graph.SearchEntities(word)
-			if err == nil {
-				relevantEntities = append(relevantEntities, matches...)
-			}
+	// Execute the tools
+	var allResults []map[string]any
+	for _, call := range toolCalls {
+		result, err := c.tools.Execute(ctx, call.Tool, call.Args)
+		if err != nil {
+			fmt.Printf("Warning: Tool %s failed: %v\n", call.Tool, err)
+			continue
+		}
+		if result.Success && result.Data != nil {
+			// Store result with tool context
+			allResults = append(allResults, map[string]any{
+				"tool": call.Tool,
+				"args": call.Args,
+				"data": result.Data,
+			})
 		}
 	}
 
-	// Build context for LLM
+	// Build context from tool results ONLY
 	var context strings.Builder
-	context.WriteString("You are a knowledge graph assistant. ")
+	context.WriteString("You are a knowledge graph assistant that ONLY uses information from the local knowledge graph.\n")
+	context.WriteString("IMPORTANT: Base your response ONLY on the tool results below. Do not add information from general knowledge.\n")
+	context.WriteString("If the requested information is not in the tool results, say so clearly.\n\n")
 	context.WriteString("The user asked: \"" + query + "\"\n\n")
 
-	if len(relevantEntities) > 0 {
-		context.WriteString("Relevant entities from the knowledge graph:\n")
-		for _, entity := range relevantEntities {
-			context.WriteString(fmt.Sprintf("- %s (%s): %s\n",
-				entity.Title, entity.Metadata.Type, entity.Content))
+	if len(allResults) > 0 {
+		context.WriteString("Tool results from the knowledge graph:\n")
+		for _, result := range allResults {
+			context.WriteString(fmt.Sprintf("\nTool: %s\n", result["tool"]))
+			// Format the data based on tool type
+			c.formatToolResultForContext(&context, result["tool"].(string), result["data"])
 		}
+	} else {
+		context.WriteString("No relevant information found in the knowledge graph.\n")
 	}
 
-	context.WriteString("\nProvide a helpful response based on the available information.")
+	context.WriteString("\nBased ONLY on these tool results, provide a helpful response to the user.\n")
+	context.WriteString("IMPORTANT: The information above IS available in the knowledge graph - summarize it for the user.\n")
+	context.WriteString("Rules:\n")
+	context.WriteString("1. Only mention information that appears in the tool results above\n")
+	context.WriteString("2. If a search returned results, that means the information WAS found\n")
+	context.WriteString("3. Be concise but informative - summarize what you found\n")
+	context.WriteString("4. Do not add facts from your general knowledge - only report what's in the results\n")
+	context.WriteString("5. Do not say information is limited if you found entities - describe what you found\n")
 
 	// Get LLM response
+	if c.debug {
+		fmt.Printf("DEBUG: Sending context to LLM (%d chars)\n", len(context.String()))
+	}
+
 	response, err := c.llm.Complete(ctx, context.String(), "")
 	if err != nil {
 		return fmt.Errorf("LLM query failed: %w", err)
 	}
 
+	if c.debug {
+		fmt.Printf("DEBUG: Received response (%d chars)\n", len(response))
+	}
+
 	fmt.Printf("\n%s\n\n", response)
 	return nil
+}
+
+// extractToolCallsForQuery determines which tools to use for a natural language query
+func (c *CLI) extractToolCallsForQuery(ctx context.Context, query string) ([]tools.ToolCall, error) {
+	// Build prompt for tool extraction
+	var prompt strings.Builder
+	prompt.WriteString("You are a knowledge graph assistant that MUST use tools to access information.\n")
+	prompt.WriteString("Analyze the user's query and determine which tools to use.\n\n")
+
+	prompt.WriteString("Available tools:\n")
+	prompt.WriteString("- search_entities: Search for entities by keyword\n")
+	prompt.WriteString("- read_entity: Read a specific entity by ID\n")
+	prompt.WriteString("- get_related: Get entities related to a specific entity\n\n")
+
+	prompt.WriteString("User query: ")
+	prompt.WriteString(query)
+	prompt.WriteString("\n\n")
+
+	prompt.WriteString("IMPORTANT: You MUST use tools to retrieve ANY information about entities.\n")
+	prompt.WriteString("Even if you think you know the answer, you MUST use tools.\n\n")
+
+	prompt.WriteString("Respond with tool calls in this format (one per line):\n")
+	prompt.WriteString("TOOL: tool_name ARG: argument_name=value\n")
+	prompt.WriteString("Example:\n")
+	prompt.WriteString("TOOL: search_entities ARG: query=elon musk\n\n")
+	prompt.WriteString("Your response:")
+
+	// Get LLM response
+	response, err := c.llm.Complete(ctx, prompt.String(), "")
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse tool calls from response
+	return c.parseToolCalls(response), nil
+}
+
+// parseToolCalls extracts tool calls from LLM response
+func (c *CLI) parseToolCalls(response string) []tools.ToolCall {
+	var calls []tools.ToolCall
+
+	lines := strings.SplitSeq(response, "\n")
+	for line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "TOOL:") {
+			parts := strings.Split(line, "ARG:")
+			if len(parts) >= 2 {
+				toolName := strings.TrimSpace(strings.TrimPrefix(parts[0], "TOOL:"))
+				argPart := strings.TrimSpace(parts[1])
+
+				// Parse arguments
+				args := make(map[string]any)
+				argPairs := strings.SplitSeq(argPart, ",")
+				for pair := range argPairs {
+					kv := strings.SplitN(pair, "=", 2)
+					if len(kv) == 2 {
+						args[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+					}
+				}
+
+				if toolName != "" && len(args) > 0 {
+					calls = append(calls, tools.ToolCall{
+						Tool: toolName,
+						Args: args,
+					})
+				}
+			}
+		}
+	}
+
+	// If no explicit tools found, try to infer from query
+	if len(calls) == 0 {
+		// Default to searching for key terms
+		calls = append(calls, tools.ToolCall{
+			Tool: "search_entities",
+			Args: map[string]any{
+				"query": response,
+			},
+		})
+	}
+
+	return calls
+}
+
+// fallbackSearch performs a simple search when LLM tool extraction fails
+func (c *CLI) fallbackSearch(query string) error {
+	result, err := c.tools.Execute(context.Background(), "search_entities", map[string]any{
+		"query": query,
+	})
+
+	if err != nil {
+		return fmt.Errorf("search failed: %w", err)
+	}
+
+	if !result.Success {
+		fmt.Println("No entities found.")
+		return nil
+	}
+
+	// Display search results
+	if matches, ok := result.Data.([]map[string]any); ok {
+		if len(matches) == 0 {
+			fmt.Println("No entities found.")
+		} else {
+			fmt.Printf("\nFound %d entities:\n", len(matches))
+			for _, match := range matches {
+				fmt.Printf("  %s %s (%s)\n",
+					getEntityIcon(graph.EntityType(match["type"].(string))),
+					match["title"],
+					match["id"])
+				if excerpt, ok := match["excerpt"].(string); ok && excerpt != "" {
+					fmt.Printf("    %s\n", excerpt)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// formatToolResultForContext formats tool results for LLM context
+func (c *CLI) formatToolResultForContext(sb *strings.Builder, toolName string, data any) {
+	switch toolName {
+	case "search_entities":
+		if matches, ok := data.([]map[string]any); ok {
+			sb.WriteString("Search results:\n")
+			for _, match := range matches {
+				sb.WriteString(fmt.Sprintf("- %s (ID: %s, Type: %s)\n",
+					match["title"], match["id"], match["type"]))
+				if excerpt, ok := match["excerpt"].(string); ok && excerpt != "" {
+					sb.WriteString(fmt.Sprintf("  Content: %s\n", excerpt))
+				}
+			}
+		}
+
+	case "read_entity":
+		if entity, ok := data.(*graph.Entity); ok {
+			sb.WriteString(fmt.Sprintf("Entity: %s (ID: %s, Type: %s)\n",
+				entity.Title, entity.Metadata.ID, entity.Metadata.Type))
+			if entity.Content != "" {
+				sb.WriteString(fmt.Sprintf("Content: %s\n", entity.Content))
+			}
+			if len(entity.Metadata.Sources) > 0 {
+				sb.WriteString(fmt.Sprintf("Sources: %s\n", strings.Join(entity.Metadata.Sources, ", ")))
+			}
+		}
+
+	case "get_related":
+		if result, ok := data.(map[string]any); ok {
+			if entity, ok := result["entity"].(*graph.Entity); ok {
+				sb.WriteString(fmt.Sprintf("Related to: %s\n", entity.Title))
+			}
+			if outgoing, ok := result["outgoing"].(map[string][]map[string]any); ok {
+				for relType, entities := range outgoing {
+					sb.WriteString(fmt.Sprintf("  %s:\n", relType))
+					for _, e := range entities {
+						sb.WriteString(fmt.Sprintf("    - %s (ID: %s)\n", e["title"], e["id"]))
+					}
+				}
+			}
+		}
+
+	default:
+		// Generic formatting
+		sb.WriteString(fmt.Sprintf("Result: %v\n", data))
+	}
 }
 
 // getEntityIcon returns an icon for the entity type
