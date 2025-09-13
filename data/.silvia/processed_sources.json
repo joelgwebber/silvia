@@ -22,9 +22,24 @@
   },
   {
     "url": "https://www.dailykos.com/stories/2025/6/5/2325968/-Elon-Musk-is-gone-but-Big-Balls-remains-and-we-re-all-paying-for-him",
-    "title": "Elon Musk is gone, but \u0026#39;Big Balls\u0026#39; remains—and we\u0026#39;re all paying for him",
+    "title": "Elon Musk is gone, but &#39;Big Balls&#39; remains—and we&#39;re all paying for him",
     "processed_at": "2025-08-29T22:09:36.022191-04:00",
     "hash": "5d2e1b17e7030d7796edca94ba735645",
     "storage_path": "data/sources/web/dailykos.com-20250829-220936.md"
+  },
+  {
+    "url": "https://www.wsj.com/politics/policy/trump-ai-michael-kratsios-peter-thiel-protege-1457e276",
+    "title": "Michael Kratsios, the Peter Thiel Protégé Shaping Trump’s AI Strategy - WSJ",
+    "processed_at": "2025-09-13T14:40:15.846195-04:00",
+    "hash": "592fa78d34b5953199c730188a6c9f63",
+    "storage_path": "data/sources/web/wsj.com-20250913-144015.md"
+  },
+  {
+    "url": "https://www.theguardian.com/commentisfree/2025/jun/30/peter-thiel-palantir-threat-to-americans",
+    "title": "Peter Thiel’s Palantir poses a grave threat to Americans | Robert Reich | The Guardian",
+    "processed_at": "2025-09-06T09:23:23.199338-04:00",
+    "hash": "e69a4cb1e01dff3622860e762237a3e6",
+    "storage_path": "data/sources/web/theguardian.com-20250906-092323.md"
   }
 ]
+

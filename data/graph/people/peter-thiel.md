@@ -4,9 +4,11 @@ type: person
 aliases:
     - Peter Andreas Thiel
 created: 2024-01-15T10:30:00Z
-updated: 2025-08-30T17:29:10.157683-04:00
+updated: 2025-09-13T14:40:54.566841-04:00
 sources:
     - sources/web/thiel-profile
+    - sources/www-theguardian-com-2025-09-06
+    - sources/www-wsj-com-2025-09-13
 tags:
     - technology
     - venture-capital
@@ -31,4 +33,6 @@ Technology entrepreneur, venture capitalist, and political activist. Co-founder 
 
 ## Back-references
 <!-- Auto-maintained by the system -->
+- [[sources/www-theguardian-com-2025-09-06]] (mentioned_in)
+- [[sources/www-wsj-com-2025-09-13]] (mentioned_in)
 

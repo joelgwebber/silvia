@@ -1,1 +1,72 @@
-[]
+[
+  {
+    "url": "https://www.wsj.com/articles/silicon-valley-investor-peter-thiel-wins-bet-on-trump-1478708226",
+    "priority": 2,
+    "added_at": "2025-09-13T14:40:54.569539-04:00",
+    "from_source": "https://www.wsj.com/politics/policy/trump-ai-michael-kratsios-peter-thiel-protege-1457e276",
+    "description": "⭐ Silicon Valley Investor Peter Thiel Wins Bet on Trump - Details Peter Thiel's support for Donald Trump during the 2016 elections."
+  },
+  {
+    "url": "https://www.wsj.com/topics/person/donald-trump",
+    "priority": 2,
+    "added_at": "2025-09-13T14:40:54.569543-04:00",
+    "from_source": "https://www.wsj.com/politics/policy/trump-ai-michael-kratsios-peter-thiel-protege-1457e276",
+    "description": "⭐ [reference] talist Peter Thiel’s top deputies. After Thiel was one of the few Silicon Valley executives to back Donald Trump in 2016, Kratsios got a top tech policy role in the first Trump administration and briefly oversaw"
+  },
+  {
+    "url": "https://www.wsj.com/tech/david-sacks-ai-crypto-czar-trump-4e07603c",
+    "priority": 2,
+    "added_at": "2025-09-13T14:40:54.569542-04:00",
+    "from_source": "https://www.wsj.com/politics/policy/trump-ai-michael-kratsios-peter-thiel-protege-1457e276",
+    "description": "⭐ David Sacks, AI and Crypto Czar Under Trump's Administration - Provides insight into the role of other key tech figures in Trump's administration."
+  },
+  {
+    "url": "https://www.wsj.com/tech/ai/china-deepseek-ai-nvidia-openai-02bdbbce",
+    "priority": 2,
+    "added_at": "2025-09-13T14:40:54.569544-04:00",
+    "from_source": "https://www.wsj.com/politics/policy/trump-ai-michael-kratsios-peter-thiel-protege-1457e276",
+    "description": "⭐ China's DeepSeek AI Surpassing U.S. Models - Discusses the advancements in AI by Chinese companies and their implications on U.S. tech policies."
+  },
+  {
+    "url": "https://www.wsj.com/tech/what-is-quantum-computing-explained-75c34d6e",
+    "priority": 2,
+    "added_at": "2025-09-13T14:40:54.569555-04:00",
+    "from_source": "https://www.wsj.com/politics/policy/trump-ai-michael-kratsios-peter-thiel-protege-1457e276",
+    "description": "⭐ What is Quantum Computing? - Explains the concept of quantum computing, relevant to Kratsios's work on national telecom systems."
+  },
+  {
+    "url": "https://www.documentcloud.org/documents/25930212-the-scouring-of-the-shire/",
+    "priority": 1,
+    "added_at": "2025-09-06T09:23:34.783976-04:00",
+    "from_source": "https://www.theguardian.com/commentisfree/2025/jun/30/peter-thiel-palantir-threat-to-americans",
+    "description": "signed a letter - A letter from thirteen former Palantir employees urging the corporation to stop its work with Trump"
+  },
+  {
+    "url": "https://www.theguardian.com/us-news/2025/jun/26/trump-palantir-protest-arrests",
+    "priority": 1,
+    "added_at": "2025-09-06T09:23:34.783975-04:00",
+    "from_source": "https://www.theguardian.com/commentisfree/2025/jun/30/peter-thiel-palantir-threat-to-americans",
+    "description": "Six arrested at protest of Palantir - Details of a protest against Palantir, a tech company working on deportation software for the Trump administration"
+  },
+  {
+    "url": "https://www.semafor.com/article/06/05/2025/destroy-the-ring-trumps-palantir-deal-alarms-hill-republicans",
+    "priority": 1,
+    "added_at": "2025-09-06T09:23:34.783978-04:00",
+    "from_source": "https://www.theguardian.com/commentisfree/2025/jun/30/peter-thiel-palantir-threat-to-americans",
+    "description": "Representative Warren Davidson - Republican Representative Warren Davidson's concerns about the Palantir deal with Trump"
+  },
+  {
+    "url": "https://www.nytimes.com/2025/05/30/technology/trump-palantir-data-americans.html",
+    "priority": 1,
+    "added_at": "2025-09-06T09:23:34.783977-04:00",
+    "from_source": "https://www.theguardian.com/commentisfree/2025/jun/30/peter-thiel-palantir-threat-to-americans",
+    "description": "New York Times reporting - Details from the New York Times about Palantir's software being used to combine data from different government departments"
+  },
+  {
+    "url": "https://blog.palantir.com/correcting-the-record-responses-to-the-may-30-2025-new-york-times-article-on-palantir-55b60ae107da",
+    "priority": 1,
+    "added_at": "2025-09-06T09:23:34.783978-04:00",
+    "from_source": "https://www.theguardian.com/commentisfree/2025/jun/30/peter-thiel-palantir-threat-to-americans",
+    "description": "Palantir has contested - Palantir's response to the New York Times' reporting"
+  }
+]
