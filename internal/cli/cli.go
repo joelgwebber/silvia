@@ -818,7 +818,7 @@ func (c *CLI) extractToolCallsForQuery(ctx context.Context, query string) ([]too
 			// Convert LLM tool calls to our tool format
 			var toolCalls []tools.ToolCall
 			for _, tc := range response.ToolCalls {
-				var args map[string]interface{}
+				var args map[string]any
 				if err := json.Unmarshal(tc.Function.Arguments, &args); err != nil {
 					if c.debug {
 						fmt.Printf("Failed to unmarshal tool arguments: %v\n", err)

@@ -7,15 +7,15 @@ Silvia uses a clean layered architecture with clear separation of concerns. All 
 ## Architecture Layers
 
 ```
-┌─────────────────────────────────────────────────┐
-│              Interface Layer                    │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
-│  │   CLI    │  │   MCP    │  │   HTTP   │     │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘     │
-│       └──────────────┼──────────────┘          │
+┌────────────────────────────────────────────────┐
+│              Interface Layer                   │
+│   ┌──────────┐  ┌──────────┐  ┌──────────┐     │
+│   │   CLI    │  │   MCP    │  │   HTTP   │     │
+│   └────┬─────┘  └────┬─────┘  └────┬─────┘     │
+│        └─────────────┼─────────────┘           │
 │                      ▼                         │
-├─────────────────────────────────────────────────┤
-│               Tool Layer                        │
+├────────────────────────────────────────────────┤
+│               Tool Layer                       │
 │  ┌──────────────────────────────────────────┐  │
 │  │         Unified Tool Registry            │  │
 │  │  • Dynamic dispatch                      │  │
@@ -23,24 +23,24 @@ Silvia uses a clean layered architecture with clear separation of concerns. All 
 │  │  • JSON schema generation                │  │
 │  └────────────────┬─────────────────────────┘  │
 │                   ▼                            │
-├─────────────────────────────────────────────────┤
-│            Operations Layer                     │
+├────────────────────────────────────────────────┤
+│            Operations Layer                    │
 │  ┌──────────────────────────────────────────┐  │
 │  │      Typed Business Operations           │  │
 │  │                                          │  │
-│  │  EntityOps    QueueOps     SourceOps    │  │
-│  │  SearchOps    LLMOps                    │  │
+│  │  EntityOps    QueueOps     SourceOps     │  │
+│  │  SearchOps    LLMOps                     │  │
 │  └────────────────┬─────────────────────────┘  │
 │                   ▼                            │
-├─────────────────────────────────────────────────┤
-│             Core Graph Layer                    │
+├────────────────────────────────────────────────┤
+│             Core Graph Layer                   │
 │  ┌──────────────────────────────────────────┐  │
 │  │       Basic Data & Storage               │  │
 │  │  • Entity types & structures             │  │
 │  │  • Markdown I/O with frontmatter         │  │
 │  │  • File system operations                │  │
 │  └──────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────┘
+└────────────────────────────────────────────────┘
 ```
 
 ## Component Details

@@ -6,7 +6,6 @@ aliases:
 created: 2024-01-15T10:30:00Z
 updated: 2025-09-13T14:40:54.566841-04:00
 sources:
-    - sources/web/thiel-profile
     - sources/www-theguardian-com-2025-09-06
     - sources/www-wsj-com-2025-09-13
 tags:

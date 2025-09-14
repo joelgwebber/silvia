@@ -71,7 +71,7 @@ func (r *Registry) List() []Tool {
 }
 
 // Execute runs a tool by name with the given arguments
-func (r *Registry) Execute(ctx context.Context, toolName string, args map[string]interface{}) (ToolResult, error) {
+func (r *Registry) Execute(ctx context.Context, toolName string, args map[string]any) (ToolResult, error) {
 	// Log the tool call
 	r.logger.LogToolCall(toolName, args)
 	startTime := time.Now()

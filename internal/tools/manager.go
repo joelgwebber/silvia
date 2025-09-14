@@ -173,9 +173,9 @@ func (m *Manager) FindTools(query string) []Tool {
 }
 
 // GetToolSchemas returns JSON schemas for all tools (for LLM function calling)
-func (m *Manager) GetToolSchemas() []map[string]interface{} {
+func (m *Manager) GetToolSchemas() []map[string]any {
 	tools := m.registry.List()
-	schemas := make([]map[string]interface{}, 0, len(tools))
+	schemas := make([]map[string]any, 0, len(tools))
 
 	for _, tool := range tools {
 		schema := m.toolToSchema(tool)
@@ -186,13 +186,13 @@ func (m *Manager) GetToolSchemas() []map[string]interface{} {
 }
 
 // toolToSchema converts a tool to a JSON schema for LLM function calling
-func (m *Manager) toolToSchema(tool Tool) map[string]interface{} {
+func (m *Manager) toolToSchema(tool Tool) map[string]any {
 	// Build parameter schema
-	properties := make(map[string]interface{})
+	properties := make(map[string]any)
 	required := []string{}
 
 	for _, param := range tool.Parameters() {
-		paramSchema := map[string]interface{}{
+		paramSchema := map[string]any{
 			"type":        convertTypeToJSONSchema(param.Type),
 			"description": param.Description,
 		}
@@ -208,10 +208,10 @@ func (m *Manager) toolToSchema(tool Tool) map[string]interface{} {
 		}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"name":        tool.Name(),
 		"description": tool.Description(),
-		"parameters": map[string]interface{}{
+		"parameters": map[string]any{
 			"type":       "object",
 			"properties": properties,
 			"required":   required,

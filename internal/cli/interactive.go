@@ -33,7 +33,7 @@ type selectableItem struct {
 	title       string
 	description string
 	selected    bool
-	value       interface{}
+	value       any
 }
 
 func (i selectableItem) Title() string       { return i.title }

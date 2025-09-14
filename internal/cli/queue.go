@@ -199,13 +199,13 @@ func (q *SourceQueue) Swap(i, j int) {
 	q.items[j].index = j
 }
 
-func (q *SourceQueue) Push(x interface{}) {
+func (q *SourceQueue) Push(x any) {
 	item := x.(*QueuedSource)
 	item.index = len(q.items)
 	q.items = append(q.items, item)
 }
 
-func (q *SourceQueue) Pop() interface{} {
+func (q *SourceQueue) Pop() any {
 	old := q.items
 	n := len(old)
 	item := old[n-1]

@@ -81,7 +81,7 @@ func (c *Client) CompleteWithSystem(ctx context.Context, systemPrompt, userPromp
 // CompleteWithStructuredOutput completes with a JSON schema for structured output
 // The result parameter should be a pointer to a struct that will be populated with the response.
 // Use this when you have a well-defined output structure and want schema validation.
-func (c *Client) CompleteWithStructuredOutput(ctx context.Context, systemPrompt, userPrompt string, result interface{}, model string) error {
+func (c *Client) CompleteWithStructuredOutput(ctx context.Context, systemPrompt, userPrompt string, result any, model string) error {
 	if model == "" {
 		model = "openai/gpt-4-turbo" // Use a model that supports JSON mode well
 	}
@@ -245,9 +245,9 @@ type Tool struct {
 
 // Function represents the function definition
 type Function struct {
-	Name        string      `json:"name"`
-	Description string      `json:"description"`
-	Parameters  interface{} `json:"parameters"` // JSON Schema
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Parameters  any    `json:"parameters"` // JSON Schema
 }
 
 // ToolCall represents a function call request from the model
