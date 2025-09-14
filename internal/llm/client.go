@@ -83,7 +83,7 @@ func (c *Client) CompleteWithSystem(ctx context.Context, systemPrompt, userPromp
 // Use this when you have a well-defined output structure and want schema validation.
 func (c *Client) CompleteWithStructuredOutput(ctx context.Context, systemPrompt, userPrompt string, result interface{}, model string) error {
 	if model == "" {
-		model = "openai/gpt-4-turbo"  // Use a model that supports JSON mode well
+		model = "openai/gpt-4-turbo" // Use a model that supports JSON mode well
 	}
 
 	// Generate JSON schema from the output type
@@ -109,7 +109,7 @@ func (c *Client) CompleteWithStructuredOutput(ctx context.Context, systemPrompt,
 			JSONSchema: &openrouter.ChatCompletionResponseFormatJSONSchema{
 				Name:   "result",
 				Schema: schema,
-				Strict: false,  // Some models don't support strict mode
+				Strict: false, // Some models don't support strict mode
 			},
 		},
 	}
@@ -219,4 +219,140 @@ ENTITY 2:
 Provide the merged content:`, entity1Content, entity2Content)
 
 	return c.CompleteWithSystem(ctx, systemPrompt, userPrompt, model)
+}
+
+// FunctionCallRequest represents a request with function calling capabilities
+type FunctionCallRequest struct {
+	Model      string
+	Messages   []Message
+	Tools      []Tool
+	ToolChoice string // "auto", "none", or specific tool name
+}
+
+// Message represents a chat message
+type Message struct {
+	Role       string     `json:"role"`
+	Content    string     `json:"content"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string     `json:"tool_call_id,omitempty"`
+}
+
+// Tool represents a function that can be called
+type Tool struct {
+	Type     string   `json:"type"` // Always "function" for now
+	Function Function `json:"function"`
+}
+
+// Function represents the function definition
+type Function struct {
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Parameters  interface{} `json:"parameters"` // JSON Schema
+}
+
+// ToolCall represents a function call request from the model
+type ToolCall struct {
+	ID       string       `json:"id"`
+	Type     string       `json:"type"`
+	Function FunctionCall `json:"function"`
+}
+
+// FunctionCall contains the function name and arguments
+type FunctionCall struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"` // JSON string
+}
+
+// FunctionCallResponse represents the response from a function calling request
+type FunctionCallResponse struct {
+	Content   string
+	ToolCalls []ToolCall
+}
+
+// CompleteWithFunctions performs a completion with function calling capabilities
+func (c *Client) CompleteWithFunctions(ctx context.Context, request FunctionCallRequest) (*FunctionCallResponse, error) {
+	if request.Model == "" {
+		request.Model = "openai/gpt-4-turbo" // Default to a model that supports function calling
+	}
+
+	// Convert our messages to OpenRouter format
+	orMessages := make([]openrouter.ChatCompletionMessage, len(request.Messages))
+	for i, msg := range request.Messages {
+		orMsg := openrouter.ChatCompletionMessage{
+			Role:       msg.Role,
+			Content:    openrouter.Content{Text: msg.Content},
+			ToolCallID: msg.ToolCallID,
+		}
+
+		// Convert tool calls if present
+		if len(msg.ToolCalls) > 0 {
+			orMsg.ToolCalls = make([]openrouter.ToolCall, len(msg.ToolCalls))
+			for j, tc := range msg.ToolCalls {
+				orMsg.ToolCalls[j] = openrouter.ToolCall{
+					ID:   tc.ID,
+					Type: openrouter.ToolType(tc.Type),
+					Function: openrouter.FunctionCall{
+						Name:      tc.Function.Name,
+						Arguments: tc.Function.Arguments,
+					},
+				}
+			}
+		}
+		orMessages[i] = orMsg
+	}
+
+	// Convert our tools to OpenRouter format
+	orTools := make([]openrouter.Tool, len(request.Tools))
+	for i, tool := range request.Tools {
+		orTools[i] = openrouter.Tool{
+			Type: openrouter.ToolTypeFunction,
+			Function: &openrouter.FunctionDefinition{
+				Name:        tool.Function.Name,
+				Description: tool.Function.Description,
+				Parameters:  tool.Function.Parameters,
+			},
+		}
+	}
+
+	// Create the OpenRouter request
+	orRequest := openrouter.ChatCompletionRequest{
+		Model:      request.Model,
+		Messages:   orMessages,
+		Tools:      orTools,
+		ToolChoice: request.ToolChoice,
+	}
+
+	// Make the API call
+	response, err := c.openRouterClient.CreateChatCompletion(ctx, orRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create completion with functions: %w", err)
+	}
+
+	if len(response.Choices) == 0 {
+		return nil, fmt.Errorf("no completion choices returned")
+	}
+
+	choice := response.Choices[0]
+
+	// Convert the response
+	result := &FunctionCallResponse{
+		Content: choice.Message.Content.Text,
+	}
+
+	// Convert tool calls if present
+	if len(choice.Message.ToolCalls) > 0 {
+		result.ToolCalls = make([]ToolCall, len(choice.Message.ToolCalls))
+		for i, tc := range choice.Message.ToolCalls {
+			result.ToolCalls[i] = ToolCall{
+				ID:   tc.ID,
+				Type: string(tc.Type),
+				Function: FunctionCall{
+					Name:      tc.Function.Name,
+					Arguments: tc.Function.Arguments,
+				},
+			}
+		}
+	}
+
+	return result, nil
 }

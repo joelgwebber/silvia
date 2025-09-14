@@ -28,9 +28,9 @@ Original content preserved for reference:
 - Associated media (images, PDFs)
 - Link to entities extracted from them
 
-## Architecture
+## Data Organization
 
-### Storage Layer
+### Storage Structure
 File-based storage using markdown with YAML frontmatter:
 ```
 data/
@@ -94,10 +94,12 @@ Conservative pastor involved with National Conservatism.
 
 5. **Priority Queue**: Source exploration uses a priority queue to manage the discovery process, allowing users to systematically work through linked sources.
 
-## User Interface
+## User Interfaces
+
+Silvia provides multiple ways to interact with the knowledge graph:
 
 ### Interactive CLI
-A chat-like interface similar to claude-code that supports both commands and natural language:
+Primary interface - a chat-like experience that supports both commands and natural language:
 
 ```
 > show people/peter-thiel
@@ -110,14 +112,31 @@ A chat-like interface similar to claude-code that supports both commands and nat
 [Fetches and analyzes source]
 ```
 
+### Browser Extension
+HTTP API for web content ingestion:
+- Select text and extract entities
+- Add sources to exploration queue
+- Quick entity search from any webpage
+- Automatic link extraction and relevance scoring
+
+### MCP Server (AI Assistants)
+Model Context Protocol server enables AI assistants like Claude Desktop to:
+- Search and read entities
+- Create and update graph content
+- Process sources and extract information
+- Navigate relationships programmatically
+
 ### Core Commands
 - `ingest <url>` - Add and analyze a new source
 - `show <entity-id>` - Display entity details
 - `search <query>` - Search entities
 - `related <entity-id>` - Show connected entities
-- `queue` - Manage pending sources
+- `queue` or `explore queue` - Manage pending sources
 - `create <type> <id>` - Create new entity
 - `link <from> <type> <to>` - Add relationship
+- `merge <id1> <id2>` - Merge duplicate entities
+- `rename <old-id> <new-id>` - Rename entity with reference updates
+- `refine <entity-id>` - Use LLM to improve entity content
 
 ## Processing Pipeline
 
@@ -141,29 +160,29 @@ When new sources provide information about existing entities:
 - Maintain change history
 - Refresh back-references
 
-## Implementation Status
+## Feature Status
 
-### ✅ Completed
-- Core graph data structures
-- Markdown I/O with frontmatter
-- Graph manager for CRUD operations
-- Interactive CLI with chat interface
-- Priority queue for source management
-- Back-reference maintenance
-- Basic search and navigation
+### ✅ Available Features
+- Interactive CLI with natural language support
+- Entity creation and management
+- Relationship tracking with wiki-links
+- Source ingestion from web and Bluesky
+- LLM-powered entity extraction
+- Priority queue for source exploration
+- Full-text search across entities
+- Automatic back-reference maintenance
+- Entity merging and renaming
+- Browser extension support via HTTP API
+- MCP server for AI assistant integration
 
-### 🚧 In Progress
-- Bluesky thread fetching
-- Web page scraping
-- LLM entity extraction
-- PDF text extraction
-
-### 📋 Planned
-- Advanced entity resolution
-- Temporal queries
-- Graph visualization export
-- Pattern detection
-- Bulk operations
+### 📋 Planned Features
+- Advanced entity resolution and deduplication
+- Temporal queries and timeline views
+- Graph visualization export (GraphML/GEXF)
+- Pattern detection and clustering
+- Bulk operations and batch processing
+- PDF and document extraction
+- Video transcript extraction
 
 ## Usage Examples
 

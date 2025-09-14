@@ -17,27 +17,27 @@ type Tool interface {
 	Parameters() []Parameter
 
 	// Execute runs the tool with the given arguments
-	Execute(ctx context.Context, args map[string]interface{}) (ToolResult, error)
+	Execute(ctx context.Context, args map[string]any) (ToolResult, error)
 
 	// ValidateArgs checks if the provided arguments are valid
-	ValidateArgs(args map[string]interface{}) error
+	ValidateArgs(args map[string]any) error
 }
 
 // Parameter describes a single parameter for a tool
 type Parameter struct {
-	Name        string      // Parameter name
-	Type        string      // Type (string, int, bool, etc.)
-	Required    bool        // Whether this parameter is required
-	Description string      // Human-readable description
-	Default     interface{} // Default value if not provided
+	Name        string // Parameter name
+	Type        string // Type (string, int, bool, etc.)
+	Required    bool   // Whether this parameter is required
+	Description string // Human-readable description
+	Default     any    // Default value if not provided
 }
 
 // ToolResult represents the result of executing a tool
 type ToolResult struct {
-	Success bool                   // Whether the operation succeeded
-	Data    interface{}            // The actual result data
-	Error   string                 // Error message if failed
-	Meta    map[string]interface{} // Additional metadata
+	Success bool           // Whether the operation succeeded
+	Data    any            // The actual result data
+	Error   string         // Error message if failed
+	Meta    map[string]any // Additional metadata
 }
 
 // ToolError represents an error that occurred during tool execution
@@ -95,7 +95,7 @@ func (t *BaseTool) Parameters() []Parameter {
 }
 
 // ValidateArgs provides basic argument validation
-func (t *BaseTool) ValidateArgs(args map[string]interface{}) error {
+func (t *BaseTool) ValidateArgs(args map[string]any) error {
 	// Check required parameters
 	for _, param := range t.parameters {
 		if param.Required {
@@ -121,7 +121,7 @@ func (t *BaseTool) ValidateArgs(args map[string]interface{}) error {
 }
 
 // GetString extracts a string parameter from args
-func GetString(args map[string]interface{}, key string, defaultValue string) string {
+func GetString(args map[string]any, key string, defaultValue string) string {
 	if val, ok := args[key]; ok {
 		if str, ok := val.(string); ok {
 			return str
@@ -131,7 +131,7 @@ func GetString(args map[string]interface{}, key string, defaultValue string) str
 }
 
 // GetBool extracts a boolean parameter from args
-func GetBool(args map[string]interface{}, key string, defaultValue bool) bool {
+func GetBool(args map[string]any, key string, defaultValue bool) bool {
 	if val, ok := args[key]; ok {
 		if b, ok := val.(bool); ok {
 			return b
@@ -141,7 +141,7 @@ func GetBool(args map[string]interface{}, key string, defaultValue bool) bool {
 }
 
 // GetInt extracts an integer parameter from args
-func GetInt(args map[string]interface{}, key string, defaultValue int) int {
+func GetInt(args map[string]any, key string, defaultValue int) int {
 	if val, ok := args[key]; ok {
 		switch v := val.(type) {
 		case int:
@@ -156,13 +156,13 @@ func GetInt(args map[string]interface{}, key string, defaultValue int) int {
 }
 
 // GetStringSlice extracts a string slice parameter from args
-func GetStringSlice(args map[string]interface{}, key string, defaultValue []string) []string {
+func GetStringSlice(args map[string]any, key string, defaultValue []string) []string {
 	if val, ok := args[key]; ok {
 		if slice, ok := val.([]string); ok {
 			return slice
 		}
-		// Try to convert []interface{} to []string
-		if iSlice, ok := val.([]interface{}); ok {
+		// Try to convert []any to []string
+		if iSlice, ok := val.([]any); ok {
 			result := make([]string, 0, len(iSlice))
 			for _, item := range iSlice {
 				if str, ok := item.(string); ok {
@@ -172,6 +172,16 @@ func GetStringSlice(args map[string]interface{}, key string, defaultValue []stri
 			if len(result) > 0 {
 				return result
 			}
+		}
+	}
+	return defaultValue
+}
+
+// GetMap extracts a map parameter from args
+func GetMap(args map[string]any, key string, defaultValue map[string]any) map[string]any {
+	if val, ok := args[key]; ok {
+		if m, ok := val.(map[string]any); ok {
+			return m
 		}
 	}
 	return defaultValue

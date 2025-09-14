@@ -123,27 +123,18 @@ func main() {
 
 	// Start extension API server if enabled
 	if !noServer {
-		// Create ingestion handler that wraps the CLI method
-		ingestHandler := func(ctx context.Context, url string, html string, title string, links []server.LinkInfo, metadata map[string]string, force bool) error {
-			// Convert server.LinkInfo to cli.ExtensionLinkInfo
-			cliLinks := make([]cli.ExtensionLinkInfo, len(links))
-			for i, link := range links {
-				cliLinks[i] = cli.ExtensionLinkInfo{
-					URL:     link.URL,
-					Text:    link.Text,
-					Context: link.Context,
-				}
-			}
-			return cliInterface.IngestFromExtension(ctx, url, html, title, cliLinks, metadata, force)
+		ops := cliInterface.GetOperations()
+		if ops == nil {
+			log.Fatal("Operations layer not available")
 		}
 
-		apiServer := server.NewServer(serverPort, serverToken, ingestHandler)
+		apiServer := server.NewServer(serverPort, serverToken, ops)
 		go func() {
 			if err := apiServer.Start(); err != nil && err != http.ErrServerClosed {
-				log.Printf("Extension API server error: %v", err)
+				log.Printf("API server error: %v", err)
 			}
 		}()
-		log.Printf("Extension API server started on port %d", serverPort)
+		log.Printf("API server started on port %d", serverPort)
 
 		// Ensure server stops on exit
 		defer func() {

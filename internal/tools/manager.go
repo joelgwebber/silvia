@@ -5,31 +5,28 @@ import (
 	"fmt"
 	"time"
 
-	"silvia/internal/graph"
-	"silvia/internal/llm"
-	"silvia/internal/sources"
+	"silvia/internal/operations"
 )
 
-// Manager manages tools and their dependencies
+// Manager manages tools using the operations layer
 type Manager struct {
 	registry *Registry
-	graphOps *graph.GraphOperations
-	llm      *llm.Client
-	sources  *sources.Manager
+	ops      *operations.Operations
 	logger   Logger
 }
 
-// NewManager creates a new tool manager with all standard tools registered
-func NewManager(graphManager *graph.Manager, llmClient *llm.Client, sourcesManager *sources.Manager) *Manager {
-	// Create operations layer
-	graphOps := graph.NewGraphOperations(graphManager, llmClient)
+// ToolCall represents a single tool invocation in a chain
+type ToolCall struct {
+	Tool string         // Tool name
+	Args map[string]any // Arguments for the tool
+}
 
+// NewManager creates a new tool manager with operations-based tools
+func NewManager(ops *operations.Operations) *Manager {
 	// Create manager with default logger
 	m := &Manager{
 		registry: NewRegistry(),
-		graphOps: graphOps,
-		llm:      llmClient,
-		sources:  sourcesManager,
+		ops:      ops,
 		logger:   NewDefaultLogger(false), // Default to non-verbose logging
 	}
 
@@ -37,7 +34,7 @@ func NewManager(graphManager *graph.Manager, llmClient *llm.Client, sourcesManag
 	m.registry.SetLogger(m.logger)
 
 	// Register all standard tools
-	m.registerStandardTools()
+	m.registerAllTools()
 
 	return m
 }
@@ -64,22 +61,34 @@ func (m *Manager) EnableFileLogging(filename string, verbose bool) error {
 	return nil
 }
 
-// registerStandardTools registers all built-in tools
-func (m *Manager) registerStandardTools() {
-	// Graph tools
-	m.registry.Register(NewReadEntityTool(m.graphOps))
-	m.registry.Register(NewUpdateEntityTool(m.graphOps))
-	m.registry.Register(NewCreateEntityTool(m.graphOps))
-	m.registry.Register(NewSearchEntitiesTool(m.graphOps))
-	m.registry.Register(NewCreateLinkTool(m.graphOps))
-	m.registry.Register(NewGetRelatedEntitiesTool(m.graphOps))
+// registerAllTools registers all tools from the operations layer
+func (m *Manager) registerAllTools() {
+	// Entity tools
+	m.registry.Register(NewMergeEntitiesTool(m.ops.Entity))
+	m.registry.Register(NewRenameEntityTool(m.ops.Entity))
+	m.registry.Register(NewRefineEntityTool(m.ops.Entity))
+	m.registry.Register(NewDeleteEntityTool(m.ops.Entity))
+	m.registry.Register(NewCreateEntityOpsTool(m.ops.Entity))
 
-	// Additional tools can be registered here as they're created:
-	// - MergeTool
-	// - RenameTool
-	// - RefineTool
-	// - IngestTool
-	// - QueueTool
+	// Queue tools
+	m.registry.Register(NewGetQueueTool(m.ops.Queue))
+	m.registry.Register(NewAddToQueueTool(m.ops.Queue))
+	m.registry.Register(NewRemoveFromQueueTool(m.ops.Queue))
+	m.registry.Register(NewProcessNextQueueItemTool(m.ops.Queue))
+	m.registry.Register(NewUpdateQueuePriorityTool(m.ops.Queue))
+	m.registry.Register(NewClearQueueTool(m.ops.Queue))
+
+	// Source tools
+	m.registry.Register(NewIngestSourceTool(m.ops.Source))
+	m.registry.Register(NewExtractFromHTMLTool(m.ops.Source))
+
+	// Search tools
+	m.registry.Register(NewSearchEntitiesOpsTool(m.ops.Search))
+	m.registry.Register(NewGetRelatedEntitiesOpsTool(m.ops.Search))
+	m.registry.Register(NewGetEntitiesByTypeTool(m.ops.Search))
+	m.registry.Register(NewSuggestRelatedTool(m.ops.Search))
+
+	// All tools now use the operations layer - no more GraphOperations
 }
 
 // Registry returns the tool registry
@@ -148,12 +157,6 @@ func (m *Manager) processArguments(args map[string]any, previousResults []ToolRe
 	return processed
 }
 
-// ToolCall represents a single tool invocation in a chain
-type ToolCall struct {
-	Tool string         // Tool name
-	Args map[string]any // Arguments for the tool
-}
-
 // GetToolHelp returns help text for a specific tool
 func (m *Manager) GetToolHelp(toolName string) (string, error) {
 	return m.registry.GetToolHelp(toolName)
@@ -167,4 +170,71 @@ func (m *Manager) GetAllTools() []Tool {
 // FindTools searches for tools matching a query
 func (m *Manager) FindTools(query string) []Tool {
 	return m.registry.Search(query)
+}
+
+// GetToolSchemas returns JSON schemas for all tools (for LLM function calling)
+func (m *Manager) GetToolSchemas() []map[string]interface{} {
+	tools := m.registry.List()
+	schemas := make([]map[string]interface{}, 0, len(tools))
+
+	for _, tool := range tools {
+		schema := m.toolToSchema(tool)
+		schemas = append(schemas, schema)
+	}
+
+	return schemas
+}
+
+// toolToSchema converts a tool to a JSON schema for LLM function calling
+func (m *Manager) toolToSchema(tool Tool) map[string]interface{} {
+	// Build parameter schema
+	properties := make(map[string]interface{})
+	required := []string{}
+
+	for _, param := range tool.Parameters() {
+		paramSchema := map[string]interface{}{
+			"type":        convertTypeToJSONSchema(param.Type),
+			"description": param.Description,
+		}
+
+		if param.Default != nil {
+			paramSchema["default"] = param.Default
+		}
+
+		properties[param.Name] = paramSchema
+
+		if param.Required {
+			required = append(required, param.Name)
+		}
+	}
+
+	return map[string]interface{}{
+		"name":        tool.Name(),
+		"description": tool.Description(),
+		"parameters": map[string]interface{}{
+			"type":       "object",
+			"properties": properties,
+			"required":   required,
+		},
+	}
+}
+
+// convertTypeToJSONSchema converts Go types to JSON schema types
+func convertTypeToJSONSchema(goType string) string {
+	switch goType {
+	case "string":
+		return "string"
+	case "int", "int32", "int64":
+		return "integer"
+	case "float32", "float64":
+		return "number"
+	case "bool":
+		return "boolean"
+	case "[]string":
+		return "array"
+	case "map":
+		return "object"
+	default:
+		return "string" // Default to string for unknown types
+	}
 }

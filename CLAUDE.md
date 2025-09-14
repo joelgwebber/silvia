@@ -28,28 +28,67 @@ Silvia is a knowledge graph system for analyzing sources and tracking entities/r
 ### Module Structure
 - **Module name**: `silvia` (not github.com/...)
 - **Go version**: 1.24+
-- **Main dependencies**: 
+- **Main dependencies**:
   - `github.com/bluesky-social/indigo` - Bluesky integration
   - `github.com/revrost/go-openrouter` - LLM client
+  - `github.com/metoro-io/mcp-golang` - MCP protocol support
 
 ### Code Organization
 ```
 cmd/silvia/main.go        # Entry point - interactive CLI
 internal/
-├── graph/                # Core graph logic
+├── operations/           # Business logic layer (single source of truth)
+│   ├── types.go          # Shared operation types
+│   ├── entity_ops.go     # Entity CRUD and complex operations
+│   ├── queue_ops.go      # Queue management operations
+│   ├── source_ops.go     # Source ingestion operations
+│   ├── search_ops.go     # Search and relationship queries
+│   └── llm_ops.go        # LLM-assisted operations
+├── graph/                # Core graph persistence
 │   ├── types.go          # Entity/Relationship types
-│   ├── entity.go         # Entity operations
-│   ├── markdown.go       # Markdown I/O with frontmatter
-│   ├── manager.go        # Graph CRUD operations
+│   ├── entity.go         # Entity I/O operations
+│   ├── markdown.go       # Markdown storage with frontmatter
+│   └── manager.go        # Graph manager
+├── tools/                # Dynamic tool dispatch
+│   ├── manager_v2.go     # Tool manager using operations
+│   ├── entity_tools.go   # Entity tool wrappers
+│   └── queue_tools.go    # Queue tool wrappers
 ├── cli/                  # Interactive interface
-│   ├── cli.go            # Main CLI loop and command parsing
-│   ├── queue.go          # Priority queue for sources
-│   └── queue_commands.go # Queue-related commands
+│   ├── cli.go            # Main CLI using operations
+│   ├── commands.go       # Command handlers
+│   └── queue.go          # Queue management UI
+├── mcp/                  # MCP server implementation
+│   ├── server_v2.go      # MCP server using operations
+│   └── tool_bridge.go    # Bridge operations to MCP tools
+├── server/               # HTTP API
+│   ├── server_v2.go      # REST API using operations
+│   └── server.go         # Legacy extension handler
 ├── bsky/                 # Bluesky client
 │   └── client.go         # Thread fetching
 └── llm/                  # LLM integration
-    └── client.go         # OpenRouter client for entity extraction
+    └── client.go         # OpenRouter client
 ```
+
+### Layered Architecture
+
+The codebase follows a clean layered architecture:
+
+1. **Operations Layer** (`internal/operations/`): Contains all business logic as typed Go functions. This is the single source of truth for all operations.
+
+2. **Tool Layer** (`internal/tools/`): Wraps operations for dynamic dispatch, providing JSON schemas for LLM function calling and MCP protocol.
+
+3. **Interface Layer**: Multiple interfaces all use the same operations:
+   - **CLI** (`internal/cli/`): Interactive terminal interface
+   - **MCP** (`internal/mcp/`): Model Context Protocol server for AI assistants
+   - **HTTP** (`internal/server/`): REST API for browser extensions
+
+4. **Persistence Layer** (`internal/graph/`): Handles file-based storage with markdown and YAML frontmatter.
+
+This architecture ensures:
+- No duplicate business logic
+- Clean separation of concerns
+- Easy testing and maintenance
+- Consistent behavior across all interfaces
 
 ### Data Storage
 ```

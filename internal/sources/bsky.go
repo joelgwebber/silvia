@@ -46,7 +46,8 @@ func (b *BskyFetcher) Fetch(ctx context.Context, sourceURL string) (*Source, err
 	postID := matches[2]
 
 	// For now, create a placeholder
-	// TODO: Implement actual Bluesky API calls to fetch post and thread
+	// TODO (Future Enhancement): Implement actual Bluesky API calls to fetch post and thread
+	// Currently returns a placeholder that doesn't break functionality
 
 	markdown := fmt.Sprintf(`# Bluesky Post
 

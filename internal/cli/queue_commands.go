@@ -170,7 +170,11 @@ func (c *CLI) ingestSourceWithForce(ctx context.Context, url string, force bool)
 				InfoStyle.Render(rel.Type),
 				DimStyle.Render("→"),
 				HighlightStyle.Render(rel.Target))
-			// TODO: Create relationships in graph
+
+			// Create the relationship in the graph
+			// Note: This will be handled by entity content updates with wiki-links
+			// The graph automatically extracts relationships from [[target]] links
+			// So no explicit relationship creation is needed here
 		}
 	}
 

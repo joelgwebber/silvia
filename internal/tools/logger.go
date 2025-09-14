@@ -10,7 +10,7 @@ import (
 
 // Logger provides logging capabilities for tool execution
 type Logger interface {
-	LogToolCall(toolName string, args map[string]interface{})
+	LogToolCall(toolName string, args map[string]any)
 	LogToolResult(toolName string, result ToolResult, duration time.Duration)
 	LogToolError(toolName string, err error)
 	LogChainStart(chainLength int)
@@ -34,7 +34,7 @@ func NewDefaultLogger(verbose bool) *DefaultLogger {
 }
 
 // LogToolCall logs when a tool is called
-func (l *DefaultLogger) LogToolCall(toolName string, args map[string]interface{}) {
+func (l *DefaultLogger) LogToolCall(toolName string, args map[string]any) {
 	argsJSON, _ := json.Marshal(args)
 	l.logger.Printf("%s CALL: %s with args: %s", l.prefix, toolName, string(argsJSON))
 }
@@ -85,7 +85,7 @@ func (l *DefaultLogger) LogChainComplete(duration time.Duration, success bool) {
 type NullLogger struct{}
 
 // LogToolCall does nothing
-func (n *NullLogger) LogToolCall(toolName string, args map[string]interface{}) {}
+func (n *NullLogger) LogToolCall(toolName string, args map[string]any) {}
 
 // LogToolResult does nothing
 func (n *NullLogger) LogToolResult(toolName string, result ToolResult, duration time.Duration) {}

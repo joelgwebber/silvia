@@ -9,15 +9,16 @@ import (
 	"github.com/metoro-io/mcp-golang/transport/stdio"
 	"silvia/internal/graph"
 	"silvia/internal/llm"
+	"silvia/internal/operations"
+	"silvia/internal/sources"
 )
 
-// DirectMCPServer exposes Silvia's functionality directly as MCP tools
-type MCPServer struct {
-	graphManager *graph.Manager
-	llmClient    *llm.Client
+// Server exposes Silvia's functionality using the operations layer
+type Server struct {
+	ops *operations.Operations
 }
 
-// RunDirectMCPServer runs the MCP server with direct graph access
+// RunMCPServer runs the MCP server using the operations layer
 func RunMCPServer() error {
 	// Set up logging to stderr so it doesn't interfere with stdio protocol
 	log.SetOutput(os.Stderr)
@@ -30,13 +31,15 @@ func RunMCPServer() error {
 		return fmt.Errorf("MCP server mode requires stdin/stdout to be connected (not a terminal)")
 	}
 
-	log.Println("Starting Silvia Direct MCP server...")
+	log.Println("Starting Silvia MCP server v2 with operations layer...")
 
-	// Initialize graph manager
+	// Initialize data directory
 	dataDir := os.Getenv("SILVIA_DATA_DIR")
 	if dataDir == "" {
 		dataDir = "./data"
 	}
+
+	// Initialize graph manager
 	graphManager := graph.NewManager(dataDir)
 	if err := graphManager.InitializeDirectories(); err != nil {
 		return fmt.Errorf("failed to initialize directories: %w", err)
@@ -52,21 +55,24 @@ func RunMCPServer() error {
 		log.Println("Warning: No OPENROUTER_API_KEY found, LLM features disabled")
 	}
 
+	// Initialize sources manager
+	sourcesManager := sources.NewManager()
+
+	// Create operations layer
+	ops := operations.New(graphManager, llmClient, sourcesManager, dataDir)
+	log.Println("Operations layer initialized")
+
 	// Create the MCP server with stdio transport
 	server := mcp.NewServer(stdio.NewStdioServerTransport())
 
-	// Register graph tools
-	if err := registerEntityTools(server, graphManager, llmClient); err != nil {
-		return fmt.Errorf("failed to register tools: %w", err)
-	}
-
-	// Register queue tools
-	if err := registerQueueTools(server, graphManager, llmClient); err != nil {
-		return fmt.Errorf("failed to register queue tools: %w", err)
+	// Register all operations-based tools with the MCP server
+	log.Println("Registering operations-based tools with MCP server...")
+	if err := RegisterOperationsTools(server, ops); err != nil {
+		return fmt.Errorf("failed to register operations tools: %w", err)
 	}
 
 	// Serve MCP requests
-	log.Println("MCP server ready, serving requests...")
+	log.Println("MCP server v2 ready, serving requests...")
 	if err := server.Serve(); err != nil {
 		return fmt.Errorf("server error: %w", err)
 	}

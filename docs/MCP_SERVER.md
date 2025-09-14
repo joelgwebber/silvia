@@ -1,188 +1,109 @@
-# Silvia MCP Server
+# MCP Server Integration
 
-The Silvia CLI includes an MCP (Model Context Protocol) server mode that allows AI assistants like Claude to interact with the CLI programmatically. This enables AI assistants to operate the Silvia terminal UI as fully and easily as a human would.
+## Overview
 
-## Features
+Silvia includes a Model Context Protocol (MCP) server that exposes its knowledge graph functionality to AI assistants like Claude Desktop. The MCP server provides programmatic access to all Silvia operations through a standardized protocol.
 
-The MCP server provides tools for:
-- Creating and managing CLI sessions
-- Sending text input and special keys
-- Observing terminal state (with automatic mode detection)
-- Waiting for specific output
-- Full support for both append mode (line-by-line output) and interactive TUI modes
+## Setup
 
-## Automatic Mode Detection
+### For Claude Desktop
 
-The server automatically detects when the CLI switches between:
-- **Append mode**: Normal line-by-line output
-- **Interactive mode**: TUI with cursor movement, screen clearing, etc.
+1. Install Silvia and ensure it's in your PATH
+2. Add to Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
-Mode detection uses:
-1. **OSC sequences**: Custom terminal sequences emitted by Silvia's interactive components
-2. **Pattern detection**: Automatic detection of escape codes indicating interactive UI
+```json
+{
+  "mcpServers": {
+    "silvia": {
+      "command": "silvia",
+      "args": ["-mcp"],
+      "env": {
+        "OPENROUTER_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
 
-## Setup for Claude Desktop
-
-1. Build the Silvia binary:
-   ```bash
-   make build
-   ```
-
-2. Add to Claude Desktop's MCP configuration:
-   - On macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - On Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-
-3. Add the Silvia server configuration:
-   ```json
-   {
-     "mcpServers": {
-       "silvia": {
-         "command": "/path/to/silvia/bin/silvia",
-         "args": ["-mcp"]
-       }
-     }
-   }
-   ```
-
-4. Restart Claude Desktop
+3. Restart Claude Desktop to load the MCP server
 
 ## Available Tools
 
-### cli_create_session
-Creates a new CLI session and returns the initial state.
+The MCP server exposes all Silvia operations as tools:
 
-### cli_send_input
-Sends text input to the CLI (equivalent to typing and pressing Enter).
+### Entity Operations
+- `read_entity` - Read entity details
+- `create_entity` - Create new entities
+- `update_entity` - Modify existing entities
+- `merge_entities` - Merge duplicate entities
+- `rename_entity` - Rename with reference updates
+- `delete_entity` - Remove entities
+- `refine_entity` - LLM-assisted content improvement
 
-Parameters:
-- `session_id`: Session ID from cli_create_session
-- `input`: Text to send
-- `wait_ms`: Optional wait time in milliseconds (default: 500)
+### Search Operations
+- `search_entities` - Full-text search
+- `get_related_entities` - Find connected entities
+- `get_entities_by_type` - List by type (person, org, etc.)
+- `suggest_related` - Find similar entities
 
-### cli_send_key
-Sends a special key to the CLI.
+### Source Operations
+- `ingest_source` - Process URLs and extract entities
+- `extract_from_html` - Extract from HTML content
 
-Parameters:
-- `session_id`: Session ID
-- `key`: Key to send (SPACE, ENTER, TAB, ESCAPE, UP, DOWN, LEFT, RIGHT, BACKSPACE, DELETE)
-- `wait_ms`: Optional wait time in milliseconds (default: 100)
+### Queue Operations
+- `get_queue` - View pending sources
+- `add_to_queue` - Add sources for processing
+- `remove_from_queue` - Remove sources
+- `process_next_queue_item` - Process highest priority
+- `update_queue_priority` - Change priorities
+- `clear_queue` - Remove all items
 
-### cli_observe
-Gets the current state without sending input.
+## Usage Examples
 
-Parameters:
-- `session_id`: Session ID
+In Claude Desktop or any MCP-compatible client:
 
-### cli_wait_for
-Waits for specific text to appear in the output.
+```
+"Search for entities related to Douglas Wilson"
+→ Uses search_entities tool
 
-Parameters:
-- `session_id`: Session ID
-- `text`: Text to wait for
-- `timeout_ms`: Maximum wait time in milliseconds (default: 5000)
+"Create a new person entity for John Smith"
+→ Uses create_entity tool
 
-### cli_close_session
-Closes a CLI session.
+"What sources are in the queue?"
+→ Uses get_queue tool
 
-Parameters:
-- `session_id`: Session ID to close
-
-## Response Format
-
-Responses vary based on the detected mode:
-
-### Append Mode Response
-```json
-{
-  "session_id": "uuid",
-  "mode": "append",
-  "append": {
-    "lines": ["line1", "line2"],
-    "raw": "raw output with escape codes",
-    "timestamp": "2024-01-01T00:00:00Z"
-  }
-}
+"Merge the duplicate Peter Thiel entities"
+→ Uses merge_entities tool
 ```
 
-### Interactive Mode Response
-```json
-{
-  "session_id": "uuid",
-  "mode": "interactive",
-  "snapshot": {
-    "mode": "interactive",
-    "screen": ["rendered line 1", "rendered line 2"],
-    "cursor": {"row": 5, "col": 10},
-    "raw": "raw output with escape codes",
-    "context": {"mode": "queue_explorer"},
-    "timestamp": "2024-01-01T00:00:00Z"
-  }
-}
-```
+## Implementation
 
-### Mode Transition
-When the CLI transitions between modes, a transition field is included:
-```json
-{
-  "transition": {
-    "from": "append",
-    "to": "interactive",
-    "trigger": "/explore queue"
-  }
-}
-```
-
-## Example Usage
-
-Here's how an AI assistant might interact with Silvia:
-
-1. Create a session:
-   ```
-   Tool: cli_create_session
-   ```
-
-2. Search for an entity:
-   ```
-   Tool: cli_send_input
-   Args: {"session_id": "...", "input": "/search douglas wilson"}
-   ```
-
-3. Navigate interactive queue explorer:
-   ```
-   Tool: cli_send_input
-   Args: {"session_id": "...", "input": "/explore queue"}
-   
-   Tool: cli_send_key
-   Args: {"session_id": "...", "key": "DOWN"}
-   
-   Tool: cli_send_key
-   Args: {"session_id": "...", "key": "SPACE"}
-   ```
-
-4. Exit interactive mode:
-   ```
-   Tool: cli_send_key
-   Args: {"session_id": "...", "key": "ESCAPE"}
-   ```
-
-## Testing
-
-Test the MCP server manually:
-```bash
-# This will fail (requires stdio connection, not terminal)
-./bin/silvia -mcp
-
-# This works (with null input)
-./bin/silvia -mcp < /dev/null
-```
+The MCP server:
+- Runs via stdio transport (stdin/stdout)
+- Uses the same operations layer as CLI and HTTP interfaces
+- Provides automatic tool discovery and schema generation
+- Handles all error cases gracefully
+- Logs to stderr to avoid protocol interference
 
 ## Development
 
-The MCP server implementation is in `internal/mcp/`:
-- `server.go`: Core session management and terminal emulation
-- `mcp.go`: MCP server setup and initialization
-- `tools.go`: Tool definitions and handlers
-- `json.go`: JSON conversion utilities
+To test the MCP server directly:
 
-The terminal utilities and OSC support are in `internal/term/`:
-- `osc.go`: OSC sequence generation for mode signaling
+```bash
+# Run in MCP mode (requires stdio redirect)
+silvia -mcp < /dev/null
+
+# Test with an MCP client
+npm install -g @modelcontextprotocol/inspector
+mcp-inspector silvia -mcp
+```
+
+For debugging, logs are written to stderr and can be captured:
+
+```bash
+silvia -mcp 2> mcp.log
+```
+
+## Technical Details
+
+See [architecture.md](./architecture.md) for details on how the MCP server integrates with Silvia's layered architecture.

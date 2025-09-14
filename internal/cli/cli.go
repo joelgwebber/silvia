@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/chzyer/readline"
 	"silvia/internal/graph"
 	"silvia/internal/llm"
+	"silvia/internal/operations"
 	"silvia/internal/sources"
 	"silvia/internal/term"
 	"silvia/internal/tools"
@@ -28,7 +30,8 @@ type CLI struct {
 	extractor  *sources.Extractor
 	tracker    *SourceTracker
 	registry   *CommandRegistry
-	tools      *tools.Manager
+	tools      *tools.Manager         // Tool manager for operations
+	ops        *operations.Operations // Unified operations layer
 	termWriter *term.OSCWriter
 	dataDir    string
 	debug      bool
@@ -38,6 +41,16 @@ type CLI struct {
 func NewCLI(graphManager *graph.Manager, llmClient *llm.Client) *CLI {
 	dataDir := "data" // Default data directory
 	sourcesManager := sources.NewManager()
+
+	// Create operations layer
+	ops := operations.New(graphManager, llmClient, sourcesManager, dataDir)
+
+	// Create tool manager
+	var toolsMgr *tools.Manager
+	if ops != nil {
+		toolsMgr = tools.NewManager(ops)
+	}
+
 	return &CLI{
 		graph:      graphManager,
 		llm:        llmClient,
@@ -46,10 +59,42 @@ func NewCLI(graphManager *graph.Manager, llmClient *llm.Client) *CLI {
 		extractor:  sources.NewExtractor(llmClient),
 		tracker:    NewSourceTracker(dataDir),
 		registry:   NewCommandRegistry(),
-		tools:      tools.NewManager(graphManager, llmClient, sourcesManager),
+		tools:      toolsMgr,
+		ops:        ops,
 		termWriter: term.NewOSCWriter(os.Stdout),
 		dataDir:    dataDir,
 	}
+}
+
+// NewCLIWithOperations creates a new CLI instance with explicit operations
+func NewCLIWithOperations(ops *operations.Operations, graphManager *graph.Manager, llmClient *llm.Client) *CLI {
+	dataDir := "data" // Default data directory
+	sourcesManager := sources.NewManager()
+
+	// Create tool manager
+	var toolsMgr *tools.Manager
+	if ops != nil {
+		toolsMgr = tools.NewManager(ops)
+	}
+
+	return &CLI{
+		graph:      graphManager,
+		llm:        llmClient,
+		queue:      NewSourceQueue(),
+		sources:    sourcesManager,
+		extractor:  sources.NewExtractor(llmClient),
+		tracker:    NewSourceTracker(dataDir),
+		registry:   NewCommandRegistry(),
+		tools:      toolsMgr,
+		ops:        ops,
+		termWriter: term.NewOSCWriter(os.Stdout),
+		dataDir:    dataDir,
+	}
+}
+
+// GetOperations returns the operations layer
+func (c *CLI) GetOperations() *operations.Operations {
+	return c.ops
 }
 
 // LoadQueue loads the queue from a file
@@ -574,12 +619,12 @@ func (c *CLI) createLink(sourceID, relType, targetID string) error {
 // mergeEntities merges two entities into one
 func (c *CLI) mergeEntities(ctx context.Context, entity1ID, entity2ID string) error {
 	// Validate both entities exist
-	entity1, err := c.graph.LoadEntity(entity1ID)
+	entity1, err := c.ops.Entity.ReadEntity(entity1ID)
 	if err != nil {
 		return fmt.Errorf("first entity not found: %w", err)
 	}
 
-	entity2, err := c.graph.LoadEntity(entity2ID)
+	entity2, err := c.ops.Entity.ReadEntity(entity2ID)
 	if err != nil {
 		return fmt.Errorf("second entity not found: %w", err)
 	}
@@ -598,26 +643,25 @@ func (c *CLI) mergeEntities(ctx context.Context, entity1ID, entity2ID string) er
 		return nil
 	}
 
-	// Perform the merge
-	if err := c.graph.MergeEntities(ctx, entity1ID, entity2ID, c.llm); err != nil {
+	// Perform the merge using operations
+	result, err := c.ops.Entity.MergeEntities(ctx, entity1ID, entity2ID)
+	if err != nil {
 		return fmt.Errorf("merge failed: %w", err)
 	}
 
-	fmt.Printf("\n✅ Successfully merged %s into %s\n", entity2ID, entity1ID)
+	fmt.Printf("\n✅ Successfully merged %s into %s\n", result.DeletedEntityID, entity1ID)
+	if len(result.UpdatedFiles) > 0 {
+		fmt.Printf("Updated %d references.\n", len(result.UpdatedFiles))
+	}
 	return nil
 }
 
 // renameEntity renames an entity and updates all references
 func (c *CLI) renameEntity(oldID, newID string) error {
 	// Validate old entity exists
-	oldEntity, err := c.graph.LoadEntity(oldID)
+	oldEntity, err := c.ops.Entity.ReadEntity(oldID)
 	if err != nil {
 		return fmt.Errorf("entity not found: %s", oldID)
-	}
-
-	// Check if new ID already exists
-	if c.graph.EntityExists(newID) {
-		return fmt.Errorf("entity already exists: %s", newID)
 	}
 
 	// Show what will happen
@@ -634,12 +678,16 @@ func (c *CLI) renameEntity(oldID, newID string) error {
 		return nil
 	}
 
-	// Perform the rename
-	if err := c.graph.RenameEntity(oldID, newID); err != nil {
+	// Perform the rename using operations
+	result, err := c.ops.Entity.RenameEntity(oldID, newID)
+	if err != nil {
 		return fmt.Errorf("rename failed: %w", err)
 	}
 
-	fmt.Printf("\n✅ Successfully renamed %s to %s\n", oldID, newID)
+	fmt.Printf("\n✅ Successfully renamed %s to %s\n", result.OldID, result.NewID)
+	if len(result.UpdatedFiles) > 0 {
+		fmt.Printf("Updated %d references.\n", len(result.UpdatedFiles))
+	}
 	return nil
 }
 
@@ -760,7 +808,40 @@ func (c *CLI) handleNaturalQuery(ctx context.Context, query string) error {
 
 // extractToolCallsForQuery determines which tools to use for a natural language query
 func (c *CLI) extractToolCallsForQuery(ctx context.Context, query string) ([]tools.ToolCall, error) {
-	// Build prompt for tool extraction
+	// Use the new LLM operations for structured function calling if available
+	if c.ops != nil && c.ops.LLM != nil && c.tools != nil {
+		// Get tool schemas from the cached tool manager
+		toolSchemas := c.tools.GetToolSchemas()
+
+		response, err := c.ops.LLM.ExecuteFunctionCall(ctx, query, toolSchemas)
+		if err == nil && len(response.ToolCalls) > 0 {
+			// Convert LLM tool calls to our tool format
+			var toolCalls []tools.ToolCall
+			for _, tc := range response.ToolCalls {
+				var args map[string]interface{}
+				if err := json.Unmarshal(tc.Function.Arguments, &args); err != nil {
+					if c.debug {
+						fmt.Printf("Failed to unmarshal tool arguments: %v\n", err)
+					}
+					continue
+				}
+				toolCalls = append(toolCalls, tools.ToolCall{
+					Tool: tc.Function.Name,
+					Args: args,
+				})
+			}
+			if c.debug {
+				fmt.Printf("LLM function calling returned %d tool calls\n", len(toolCalls))
+			}
+			return toolCalls, nil
+		}
+		if c.debug && err != nil {
+			fmt.Printf("LLM function calling failed: %v, falling back to manual parsing\n", err)
+		}
+		// Fall through to legacy method if LLM ops not available or failed
+	}
+
+	// Legacy method: Build prompt for tool extraction
 	var prompt strings.Builder
 	prompt.WriteString("You are a knowledge graph assistant that MUST use tools to access information.\n")
 	prompt.WriteString("Analyze the user's query and determine which tools to use.\n\n")
@@ -883,36 +964,34 @@ func (c *CLI) formatToolResultForContext(sb *strings.Builder, toolName string, d
 		if matches, ok := data.([]map[string]any); ok {
 			sb.WriteString("Search results:\n")
 			for _, match := range matches {
-				sb.WriteString(fmt.Sprintf("- %s (ID: %s, Type: %s)\n",
-					match["title"], match["id"], match["type"]))
+				fmt.Fprintf(sb, "- %s (ID: %s, Type: %s)\n", match["title"], match["id"], match["type"])
 				if excerpt, ok := match["excerpt"].(string); ok && excerpt != "" {
-					sb.WriteString(fmt.Sprintf("  Content: %s\n", excerpt))
+					fmt.Fprintf(sb, "  Content: %s\n", excerpt)
 				}
 			}
 		}
 
 	case "read_entity":
 		if entity, ok := data.(*graph.Entity); ok {
-			sb.WriteString(fmt.Sprintf("Entity: %s (ID: %s, Type: %s)\n",
-				entity.Title, entity.Metadata.ID, entity.Metadata.Type))
+			fmt.Fprintf(sb, "Entity: %s (ID: %s, Type: %s)\n", entity.Title, entity.Metadata.ID, entity.Metadata.Type)
 			if entity.Content != "" {
-				sb.WriteString(fmt.Sprintf("Content: %s\n", entity.Content))
+				fmt.Fprintf(sb, "Content: %s\n", entity.Content)
 			}
 			if len(entity.Metadata.Sources) > 0 {
-				sb.WriteString(fmt.Sprintf("Sources: %s\n", strings.Join(entity.Metadata.Sources, ", ")))
+				fmt.Fprintf(sb, "Sources: %s\n", strings.Join(entity.Metadata.Sources, ", "))
 			}
 		}
 
 	case "get_related":
 		if result, ok := data.(map[string]any); ok {
 			if entity, ok := result["entity"].(*graph.Entity); ok {
-				sb.WriteString(fmt.Sprintf("Related to: %s\n", entity.Title))
+				fmt.Fprintf(sb, "Related to: %s\n", entity.Title)
 			}
 			if outgoing, ok := result["outgoing"].(map[string][]map[string]any); ok {
 				for relType, entities := range outgoing {
-					sb.WriteString(fmt.Sprintf("  %s:\n", relType))
+					fmt.Fprintf(sb, "  %s:\n", relType)
 					for _, e := range entities {
-						sb.WriteString(fmt.Sprintf("    - %s (ID: %s)\n", e["title"], e["id"]))
+						fmt.Fprintf(sb, "    - %s (ID: %s)\n", e["title"], e["id"])
 					}
 				}
 			}
@@ -920,7 +999,7 @@ func (c *CLI) formatToolResultForContext(sb *strings.Builder, toolName string, d
 
 	default:
 		// Generic formatting
-		sb.WriteString(fmt.Sprintf("Result: %v\n", data))
+		fmt.Fprintf(sb, "Result: %v\n", data)
 	}
 }
 

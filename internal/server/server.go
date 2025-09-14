@@ -9,29 +9,28 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"silvia/internal/operations"
 )
 
-// IngestHandler is a function that handles ingestion requests
-type IngestHandler func(ctx context.Context, url string, html string, title string, links []LinkInfo, metadata map[string]string, force bool) error
-
-// Server provides HTTP API for browser extension
+// Server provides HTTP API using the operations layer
 type Server struct {
-	port          int
-	token         string
-	ingestHandler IngestHandler
-	server        *http.Server
-	mu            sync.RWMutex
-	lastPing      time.Time
-	ingesting     bool
+	port     int
+	token    string
+	ops      *operations.Operations
+	server   *http.Server
+	mu       sync.RWMutex
+	lastPing time.Time
+	busy     bool
 }
 
-// NewServer creates a new HTTP server for extension API
-func NewServer(port int, token string, handler IngestHandler) *Server {
+// NewServer creates a new HTTP server using operations
+func NewServer(port int, token string, ops *operations.Operations) *Server {
 	return &Server{
-		port:          port,
-		token:         token,
-		ingestHandler: handler,
-		lastPing:      time.Now(),
+		port:     port,
+		token:    token,
+		ops:      ops,
+		lastPing: time.Now(),
 	}
 }
 
@@ -46,12 +45,23 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/status", s.handleStatus)
 	mux.HandleFunc("/api/ingest", s.handleIngest)
 
+	// Entity operations
+	mux.HandleFunc("/api/entities/search", s.handleSearch)
+	mux.HandleFunc("/api/entities/", s.handleEntity)
+	mux.HandleFunc("/api/entities/merge", s.handleMerge)
+	mux.HandleFunc("/api/entities/rename", s.handleRename)
+
+	// Queue operations
+	mux.HandleFunc("/api/queue", s.handleQueue)
+	mux.HandleFunc("/api/queue/add", s.handleQueueAdd)
+	mux.HandleFunc("/api/queue/remove", s.handleQueueRemove)
+
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf("localhost:%d", s.port),
 		Handler: handler,
 	}
 
-	log.Printf("Extension API server starting on http://localhost:%d", s.port)
+	log.Printf("API server v2 starting on http://localhost:%d", s.port)
 	return s.server.ListenAndServe()
 }
 
@@ -71,7 +81,6 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 
 		// Chrome/Edge extensions have origins like chrome-extension://[id]
 		// Firefox extensions have origins like moz-extension://[id]
-		// For development, we'll allow all extension origins
 		if strings.HasPrefix(origin, "chrome-extension://") ||
 			strings.HasPrefix(origin, "moz-extension://") ||
 			strings.HasPrefix(origin, "edge-extension://") ||
@@ -82,7 +91,7 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
@@ -107,7 +116,7 @@ func (s *Server) validateToken(r *http.Request) bool {
 	return auth == expectedAuth
 }
 
-// handleStatus returns server status for connection verification
+// handleStatus returns server status
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -116,13 +125,13 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	s.lastPing = time.Now()
-	ingesting := s.ingesting
+	busy := s.busy
 	s.mu.Unlock()
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"status":    "ok",
-		"version":   "1.0.0",
-		"ingesting": ingesting,
+		"version":   "2.0.0",
+		"busy":      busy,
 		"timestamp": time.Now().Unix(),
 	}
 
@@ -130,26 +139,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// IngestRequest represents a content ingestion request from the extension
-type IngestRequest struct {
-	URL       string            `json:"url"`
-	Title     string            `json:"title"`
-	HTML      string            `json:"html"`
-	Text      string            `json:"text"`
-	Links     []LinkInfo        `json:"links"`
-	Metadata  map[string]string `json:"metadata"`
-	Selection string            `json:"selection,omitempty"`
-	Force     bool              `json:"force,omitempty"`
-}
-
-// LinkInfo represents a link extracted by the extension
-type LinkInfo struct {
-	URL     string `json:"url"`
-	Text    string `json:"text"`
-	Context string `json:"context"`
-}
-
-// handleIngest processes content from the browser extension
+// handleIngest processes content ingestion via operations
 func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -162,24 +152,27 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if already ingesting
+	// Check if busy
 	s.mu.Lock()
-	if s.ingesting {
+	if s.busy {
 		s.mu.Unlock()
-		http.Error(w, "Already processing another request", http.StatusTooManyRequests)
+		http.Error(w, "Server busy", http.StatusTooManyRequests)
 		return
 	}
-	s.ingesting = true
+	s.busy = true
 	s.mu.Unlock()
 
 	defer func() {
 		s.mu.Lock()
-		s.ingesting = false
+		s.busy = false
 		s.mu.Unlock()
 	}()
 
 	// Parse request
-	var req IngestRequest
+	var req struct {
+		URL   string `json:"url"`
+		Force bool   `json:"force"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid request: %v", err), http.StatusBadRequest)
 		return
@@ -191,21 +184,12 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Process the ingestion
+	// Process using operations
 	ctx := context.Background()
-
-	// Convert LinkInfo to the format expected by the handler
-	links := make([]LinkInfo, len(req.Links))
-	for i, link := range req.Links {
-		links[i] = link
-	}
-
-	// Call the ingestion handler with force flag
-	err := s.ingestHandler(ctx, req.URL, req.HTML, req.Title, links, req.Metadata, req.Force)
-
+	result, err := s.ops.Source.IngestSource(ctx, req.URL, req.Force)
 	if err != nil {
 		log.Printf("Ingestion error: %v", err)
-		response := map[string]interface{}{
+		response := map[string]any{
 			"success": false,
 			"error":   err.Error(),
 		}
@@ -216,12 +200,222 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return success response
-	response := map[string]interface{}{
-		"success": true,
-		"message": fmt.Sprintf("Successfully ingested: %s", req.Title),
-		"url":     req.URL,
+	response := map[string]any{
+		"success":            true,
+		"url":                result.SourceURL,
+		"archived_path":      result.ArchivedPath,
+		"extracted_entities": len(result.ExtractedEntities),
+		"extracted_links":    len(result.ExtractedLinks),
+		"processing_time":    result.ProcessingTime.String(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// handleSearch handles entity search
+func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		http.Error(w, "Query parameter 'q' is required", http.StatusBadRequest)
+		return
+	}
+
+	result, err := s.ops.Search.SearchEntities(query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+// handleEntity handles single entity operations
+func (s *Server) handleEntity(w http.ResponseWriter, r *http.Request) {
+	// Extract entity ID from path
+	path := strings.TrimPrefix(r.URL.Path, "/api/entities/")
+	if path == "" {
+		http.Error(w, "Entity ID required", http.StatusBadRequest)
+		return
+	}
+
+	switch r.Method {
+	case "GET":
+		// Read entity
+		entity, err := s.ops.Entity.ReadEntity(path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(entity)
+
+	case "PUT":
+		// Update entity
+		var req struct {
+			Title   string `json:"title,omitempty"`
+			Content string `json:"content"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+
+		// If title not provided, use existing title
+		if req.Title == "" {
+			existing, err := s.ops.Entity.ReadEntity(path)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			req.Title = existing.Title
+		}
+
+		entity, err := s.ops.Entity.UpdateEntity(path, req.Title, req.Content)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(entity)
+
+	case "DELETE":
+		// Delete entity
+		if err := s.ops.Entity.DeleteEntity(path); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// handleMerge handles entity merge operations
+func (s *Server) handleMerge(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Entity1ID string `json:"entity1_id"`
+		Entity2ID string `json:"entity2_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	ctx := context.Background()
+	result, err := s.ops.Entity.MergeEntities(ctx, req.Entity1ID, req.Entity2ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+// handleRename handles entity rename operations
+func (s *Server) handleRename(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		OldID string `json:"old_id"`
+		NewID string `json:"new_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	result, err := s.ops.Entity.RenameEntity(req.OldID, req.NewID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+// handleQueue handles queue status
+func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	status, err := s.ops.Queue.GetQueue()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
+}
+
+// handleQueueAdd adds items to queue
+func (s *Server) handleQueueAdd(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		URL         string `json:"url"`
+		Priority    int    `json:"priority"`
+		FromSource  string `json:"from_source"`
+		Description string `json:"description"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.ops.Queue.AddToQueue(req.URL, req.Priority, req.FromSource, req.Description); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "added",
+		"url":    req.URL,
+	})
+}
+
+// handleQueueRemove removes items from queue
+func (s *Server) handleQueueRemove(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "DELETE" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	url := r.URL.Query().Get("url")
+	if url == "" {
+		http.Error(w, "URL parameter required", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.ops.Queue.RemoveFromQueue(url); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

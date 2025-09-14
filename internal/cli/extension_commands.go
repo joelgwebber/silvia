@@ -51,7 +51,7 @@ func (c *CLI) IngestFromExtension(ctx context.Context, url string, html string, 
 			}
 		} else if len(links) > 5 {
 			fmt.Printf("[DEBUG] First 5 links:\n")
-			for i := 0; i < 5; i++ {
+			for i := range 5 {
 				fmt.Printf("[DEBUG] Link %d: %s\n", i+1, links[i].URL)
 			}
 		}
