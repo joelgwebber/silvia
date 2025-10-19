@@ -297,3 +297,52 @@ func (t *CreateEntityOpsTool) Execute(ctx context.Context, args map[string]any) 
 		},
 	}, nil
 }
+
+// ReadEntityTool reads an entity by ID
+type ReadEntityTool struct {
+	*BaseTool
+	ops *operations.EntityOps
+}
+
+// NewReadEntityTool creates a new read entity tool
+func NewReadEntityTool(ops *operations.EntityOps) *ReadEntityTool {
+	return &ReadEntityTool{
+		BaseTool: NewBaseTool(
+			"read_entity",
+			"Read an entity by its ID",
+			[]Parameter{
+				{
+					Name:        "id",
+					Type:        "string",
+					Required:    true,
+					Description: "Entity ID (e.g., 'people/john-doe')",
+				},
+			},
+		),
+		ops: ops,
+	}
+}
+
+// Execute reads an entity
+func (t *ReadEntityTool) Execute(ctx context.Context, args map[string]any) (ToolResult, error) {
+	id := GetString(args, "id", "")
+	if id == "" {
+		return ToolResult{Success: false, Error: "id is required"},
+			NewToolError(t.Name(), "missing entity ID", nil)
+	}
+
+	entity, err := t.ops.ReadEntity(id)
+	if err != nil {
+		return ToolResult{Success: false, Error: err.Error()},
+			NewToolError(t.Name(), "failed to read entity", err)
+	}
+
+	return ToolResult{
+		Success: true,
+		Data:    entity,
+		Meta: map[string]any{
+			"id":   entity.Metadata.ID,
+			"type": entity.Metadata.Type,
+		},
+	}, nil
+}

@@ -64,6 +64,7 @@ func (m *Manager) EnableFileLogging(filename string, verbose bool) error {
 // registerAllTools registers all tools from the operations layer
 func (m *Manager) registerAllTools() {
 	// Entity tools
+	m.registry.Register(NewReadEntityTool(m.ops.Entity))
 	m.registry.Register(NewMergeEntitiesTool(m.ops.Entity))
 	m.registry.Register(NewRenameEntityTool(m.ops.Entity))
 	m.registry.Register(NewRefineEntityTool(m.ops.Entity))

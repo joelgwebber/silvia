@@ -63,77 +63,8 @@ func (s *SourceOps) IngestSource(ctx context.Context, url string, force bool) (*
 		return nil, NewOperationError("ingest source", url, fmt.Errorf("extraction failed: %w", err))
 	}
 
-	// Process extracted entities
-	extractedEntities := []ExtractedEntity{}
-	for _, extracted := range extractResult.Entities {
-		// Generate entity ID
-		entityID := s.generateEntityID(string(extracted.Type), extracted.Name)
-
-		// Check if entity exists
-		isNew := !s.graph.EntityExists(entityID)
-		wasUpdated := false
-
-		if isNew {
-			// Create new entity
-			entity := &graph.Entity{
-				Title:   extracted.Name,
-				Content: extracted.Description,
-				Metadata: graph.Metadata{
-					ID:      entityID,
-					Type:    graph.EntityType(extracted.Type),
-					Sources: []string{url},
-					Created: time.Now(),
-					Updated: time.Now(),
-				},
-			}
-
-			if err := s.graph.SaveEntity(entity); err != nil {
-				fmt.Printf("Warning: failed to save entity %s: %v\n", entityID, err)
-				continue
-			}
-		} else {
-			// Update existing entity with new source
-			entity, err := s.graph.LoadEntity(entityID)
-			if err != nil {
-				fmt.Printf("Warning: failed to load entity %s: %v\n", entityID, err)
-				continue
-			}
-
-			// Add source if not already present
-			hasSource := slices.Contains(entity.Metadata.Sources, url)
-			if !hasSource {
-				entity.Metadata.Sources = append(entity.Metadata.Sources, url)
-				entity.Metadata.Updated = time.Now()
-				if err := s.graph.SaveEntity(entity); err != nil {
-					fmt.Printf("Warning: failed to update entity %s: %v\n", entityID, err)
-					continue
-				}
-				wasUpdated = true
-			}
-		}
-
-		extractedEntities = append(extractedEntities, ExtractedEntity{
-			ID:          entityID,
-			Type:        string(extracted.Type),
-			Name:        extracted.Name,
-			Description: extracted.Description,
-			Content:     extracted.Description,
-			IsNew:       isNew,
-			WasUpdated:  wasUpdated,
-		})
-	}
-
-	// Process extracted links
-	extractedLinks := []ExtractedLink{}
-	for _, link := range extractResult.Links {
-		extractedLinks = append(extractedLinks, ExtractedLink{
-			URL:         link.URL,
-			Title:       link.Title,
-			Description: link.Description,
-			Category:    link.Category,
-			Relevance:   link.Relevance,
-		})
-	}
+	// Process extraction results using shared logic
+	extractedEntities, extractedLinks := s.processExtractionResult(extractResult, url)
 
 	// Mark source as processed
 	s.markSourceProcessed(url)
@@ -181,27 +112,97 @@ func (s *SourceOps) ExtractFromHTML(ctx context.Context, url, html, title string
 		return nil, NewOperationError("extract from HTML", url, err)
 	}
 
-	// Process extracted entities (similar to IngestSource)
+	// Process extraction results using shared logic
+	extractedEntities, extractedLinks := s.processExtractionResult(extractResult, url)
+
+	// Mark source as processed
+	s.markSourceProcessed(url)
+
+	return &IngestResult{
+		SourceURL:         url,
+		ArchivedPath:      archivedPath,
+		ExtractedEntities: extractedEntities,
+		ExtractedLinks:    extractedLinks,
+		ProcessingTime:    time.Since(time.Now()),
+	}, nil
+}
+
+// processExtractionResult is the shared logic for processing extraction results
+// Used by both IngestSource and ExtractFromHTML to ensure consistent behavior
+func (s *SourceOps) processExtractionResult(extractResult *sources.ExtractionResult, sourceURL string) ([]ExtractedEntity, []ExtractedLink) {
+	// Process extracted entities
 	extractedEntities := []ExtractedEntity{}
 	for _, extracted := range extractResult.Entities {
+		// Generate entity ID
 		entityID := s.generateEntityID(string(extracted.Type), extracted.Name)
+
+		// Check if entity exists
 		isNew := !s.graph.EntityExists(entityID)
+		wasUpdated := false
+
+		if isNew {
+			// Create new entity
+			entity := &graph.Entity{
+				Title:   extracted.Name,
+				Content: extracted.Description,
+				Metadata: graph.Metadata{
+					ID:      entityID,
+					Type:    graph.EntityType(extracted.Type),
+					Sources: []string{sourceURL},
+					Created: time.Now(),
+					Updated: time.Now(),
+				},
+			}
+
+			if err := s.graph.SaveEntity(entity); err != nil {
+				fmt.Printf("Warning: failed to save entity %s: %v\n", entityID, err)
+				continue
+			}
+		} else {
+			// Update existing entity with new source
+			entity, err := s.graph.LoadEntity(entityID)
+			if err != nil {
+				fmt.Printf("Warning: failed to load entity %s: %v\n", entityID, err)
+				continue
+			}
+
+			// Add source if not already present
+			hasSource := slices.Contains(entity.Metadata.Sources, sourceURL)
+			if !hasSource {
+				entity.Metadata.Sources = append(entity.Metadata.Sources, sourceURL)
+				entity.Metadata.Updated = time.Now()
+				if err := s.graph.SaveEntity(entity); err != nil {
+					fmt.Printf("Warning: failed to update entity %s: %v\n", entityID, err)
+					continue
+				}
+				wasUpdated = true
+			}
+		}
 
 		extractedEntities = append(extractedEntities, ExtractedEntity{
 			ID:          entityID,
 			Type:        string(extracted.Type),
 			Name:        extracted.Name,
 			Description: extracted.Description,
+			Content:     extracted.Description,
 			IsNew:       isNew,
+			WasUpdated:  wasUpdated,
 		})
 	}
 
-	return &IngestResult{
-		SourceURL:         url,
-		ArchivedPath:      archivedPath,
-		ExtractedEntities: extractedEntities,
-		ProcessingTime:    time.Since(time.Now()),
-	}, nil
+	// Process extracted links
+	extractedLinks := []ExtractedLink{}
+	for _, link := range extractResult.Links {
+		extractedLinks = append(extractedLinks, ExtractedLink{
+			URL:         link.URL,
+			Title:       link.Title,
+			Description: link.Description,
+			Category:    link.Category,
+			Relevance:   link.Relevance,
+		})
+	}
+
+	return extractedEntities, extractedLinks
 }
 
 // archiveSource saves a source to the archive

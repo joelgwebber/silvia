@@ -83,7 +83,7 @@ func (c *Client) CompleteWithSystem(ctx context.Context, systemPrompt, userPromp
 // Use this when you have a well-defined output structure and want schema validation.
 func (c *Client) CompleteWithStructuredOutput(ctx context.Context, systemPrompt, userPrompt string, result any, model string) error {
 	if model == "" {
-		model = "openai/gpt-4-turbo" // Use a model that supports JSON mode well
+		model = "openai/gpt-4o-mini" // Use a model that supports json_schema response format
 	}
 
 	// Generate JSON schema from the output type

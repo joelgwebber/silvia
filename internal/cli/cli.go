@@ -333,14 +333,21 @@ func (c *CLI) showEntity(entityID string) error {
 			return fmt.Errorf("entity not found: %v", err)
 		}
 
-		matches := searchResult.Data.([]map[string]any)
+		// Handle SearchResult type
+		var matches []operations.SearchMatch
+		if sr, ok := searchResult.Data.(*operations.SearchResult); ok {
+			matches = sr.Results
+		} else {
+			return fmt.Errorf("unexpected search result type")
+		}
+
 		if len(matches) == 0 {
 			return fmt.Errorf("entity not found: %v", err)
 		}
 
 		if len(matches) == 1 {
 			// Load the single match
-			entityID = matches[0]["id"].(string)
+			entityID = matches[0].Entity.Metadata.ID
 			result, err = c.tools.Execute(context.Background(), "read_entity", map[string]any{
 				"id": entityID,
 			})
@@ -350,7 +357,7 @@ func (c *CLI) showEntity(entityID string) error {
 		} else {
 			fmt.Println("Multiple matches found:")
 			for i, match := range matches {
-				fmt.Printf("%d. %s (%s)\n", i+1, match["title"], match["id"])
+				fmt.Printf("%d. %s (%s)\n", i+1, match.Entity.Title, match.Entity.Metadata.ID)
 			}
 			return nil
 		}
